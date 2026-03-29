@@ -10,6 +10,7 @@ import net.minecraft.world.chunk.ChunkPrimer;
 import org.jspecify.annotations.NonNull;
 
 import sayys.depthsupdate.util.BlockUtils;
+import sayys.depthsupdate.util.DimensionHelper;
 
 public class CaveNoiseGenerator {
     private static final int CAVE_MAX_Y = 30;
@@ -68,7 +69,7 @@ public class CaveNoiseGenerator {
 
                     if (context.shouldCarve) {
                         if (isSafeToCarve(primer, x, y, z)) {
-                            if (y < -54) {
+                            if (y < DimensionHelper.EXTENDED_LAVA_LEVEL) {
                                 primer.setBlockState(x, y, z, lava);
                             } else {
                                 primer.setBlockState(x, y, z, air);

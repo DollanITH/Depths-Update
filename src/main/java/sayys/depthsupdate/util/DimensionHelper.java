@@ -12,6 +12,7 @@ public final class DimensionHelper {
     public static final int VANILLA_STORAGE_SECTIONS = 16;
     public static final int VANILLA_TOTAL_HEIGHT = 256;
     public static final int VANILLA_MIN_Y = 0;
+    public static final int EXTENDED_LAVA_LEVEL = -54;
 
     private DimensionHelper() {}
 

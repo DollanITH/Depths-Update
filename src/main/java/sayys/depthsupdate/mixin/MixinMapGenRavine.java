@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import sayys.depthsupdate.util.BlockUtils;
+import sayys.depthsupdate.util.DimensionHelper;
 
 @Mixin(MapGenRavine.class)
 public abstract class MixinMapGenRavine extends MapGenBase {
@@ -54,7 +55,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
         if (state.getBlock() == Blocks.STONE || state.getBlock() == top.getBlock()
                 || state.getBlock() == filler.getBlock()
                 || state == deepslate || state.getBlock() == deepslate.getBlock()) {
-            if (y - 1 < -54) {
+            if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
                 data.setBlockState(x, y, z, Blocks.FLOWING_LAVA.getDefaultState());
             } else {
                 data.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
