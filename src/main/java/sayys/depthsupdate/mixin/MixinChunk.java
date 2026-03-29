@@ -145,38 +145,6 @@ public abstract class MixinChunk {
         }
     }
 
-    @Inject(method = "<init>(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/ChunkPrimer;II)V", at = @At("RETURN"))
-    private void depthsupdate$onChunkInitPrimer(World worldIn, ChunkPrimer primer, int x, int z, CallbackInfo ci) {
-        if (!DimensionHelper.isExtendedDimension(worldIn)) {
-            return;
-        }
-
-        for (int i = 0; i < this.heightMap.length; ++i) {
-            this.heightMap[i] = DimensionHelper.EXTENDED_MIN_Y;
-        }
-
-        boolean flag = worldIn.provider.hasSkyLight();
-
-        // Read negative Y blocks from the primer (Y: -64 to -1)
-        for (int j = 0; j < 16; ++j) {
-            for (int k = 0; k < 16; ++k) {
-                for (int l = DimensionHelper.EXTENDED_MIN_Y; l < 0; ++l) {
-                    IBlockState iblockstate = primer.getBlockState(j, l, k);
-
-                    if (iblockstate.getMaterial() != net.minecraft.block.material.Material.AIR) {
-                        int chunkY = DimensionHelper.toStorageIndex(this.world, l);
-
-                        if (this.storageArrays[chunkY] == NULL_BLOCK_STORAGE) {
-                            this.storageArrays[chunkY] = new ExtendedBlockStorage(l >> 4 << 4, flag);
-                        }
-
-                        this.storageArrays[chunkY].set(j, l & 15, k, iblockstate);
-                    }
-                }
-            }
-        }
-    }
-
     @Inject(method = "isEmptyBetween", at = @At("HEAD"), cancellable = true)
     public void depthsupdate$isEmptyBetween(int startY, int endY, CallbackInfoReturnable<Boolean> cir) {
         if (!depthsupdate$isExtended()) {
