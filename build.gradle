@@ -193,6 +193,9 @@ jar {
             from configurations.contain
         }
     }
+
+    from(rootProject.file("LICENSE"))
+
     doFirst {
         manifest {
             def attribute_map = [:]
