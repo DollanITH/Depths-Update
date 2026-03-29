@@ -4,6 +4,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import net.minecraft.client.renderer.block.statemap.StateMap;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -17,98 +18,122 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.oredict.OreDictionary;
 
+import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.Reference;
+import sayys.depthsupdate.block.BlockAmethystCluster;
+import sayys.depthsupdate.block.BlockAzalea;
+import sayys.depthsupdate.block.BlockBigDripleaf;
+import sayys.depthsupdate.block.BlockBigDripleafStem;
+import sayys.depthsupdate.block.BlockBuddingAmethyst;
+import sayys.depthsupdate.block.BlockCaveVines;
+import sayys.depthsupdate.block.BlockCaveVinesPlant;
+import sayys.depthsupdate.block.BlockCobbledDeepslate;
+import sayys.depthsupdate.block.BlockCopperOre;
 import sayys.depthsupdate.block.BlockDeepslate;
+import sayys.depthsupdate.block.BlockDeepslateOre;
+import sayys.depthsupdate.block.BlockDeepslateVariant;
+import sayys.depthsupdate.block.BlockHangingRoots;
+import sayys.depthsupdate.block.BlockInfestedDeepslate;
+import sayys.depthsupdate.block.BlockModLeaves;
 import sayys.depthsupdate.block.BlockModSlab;
+import sayys.depthsupdate.block.BlockModStairs;
+import sayys.depthsupdate.block.BlockModWall;
+import sayys.depthsupdate.block.BlockMossCarpet;
+import sayys.depthsupdate.block.BlockPointedDripstone;
+import sayys.depthsupdate.block.BlockSimple;
+import sayys.depthsupdate.block.BlockSmallDripleaf;
+import sayys.depthsupdate.block.BlockSporeBlossom;
+import sayys.depthsupdate.block.ItemModSlab;
+import sayys.depthsupdate.item.ItemGlowBerries;
 
 @Mod.EventBusSubscriber(modid = Reference.MOD_ID)
 public class RegistryHandler {
     public static final Block deepslate = new BlockDeepslate();
-    public static final Block cobbled_deepslate = new sayys.depthsupdate.block.BlockCobbledDeepslate();
-    public static final Block infested_deepslate = new sayys.depthsupdate.block.BlockInfestedDeepslate();
-    public static final Block polished_deepslate = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block cobbled_deepslate = new BlockCobbledDeepslate();
+    public static final Block infested_deepslate = new BlockInfestedDeepslate();
+    public static final Block polished_deepslate = new BlockDeepslateVariant(
         "polished_deepslate", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block deepslate_bricks = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block deepslate_bricks = new BlockDeepslateVariant(
         "deepslate_bricks",
         3.5F, 6.0F, SoundType.STONE);
-    public static final Block deepslate_tiles = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block deepslate_tiles = new BlockDeepslateVariant(
         "deepslate_tiles",
         3.5F, 6.0F, SoundType.STONE);
-    public static final Block chiseled_deepslate = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block chiseled_deepslate = new BlockDeepslateVariant(
         "chiseled_deepslate", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block cracked_deepslate_bricks = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block cracked_deepslate_bricks = new BlockDeepslateVariant(
         "cracked_deepslate_bricks", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block cracked_deepslate_tiles = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block cracked_deepslate_tiles = new BlockDeepslateVariant(
         "cracked_deepslate_tiles", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block cobbled_deepslate_stairs = new sayys.depthsupdate.block.BlockModStairs(
+    public static final Block cobbled_deepslate_stairs = new BlockModStairs(
         "cobbled_deepslate_stairs", cobbled_deepslate.getDefaultState());
-    public static final Block polished_deepslate_stairs = new sayys.depthsupdate.block.BlockModStairs(
+    public static final Block polished_deepslate_stairs = new BlockModStairs(
         "polished_deepslate_stairs", polished_deepslate.getDefaultState());
-    public static final Block deepslate_brick_stairs = new sayys.depthsupdate.block.BlockModStairs(
+    public static final Block deepslate_brick_stairs = new BlockModStairs(
         "deepslate_brick_stairs", deepslate_bricks.getDefaultState());
-    public static final Block deepslate_tile_stairs = new sayys.depthsupdate.block.BlockModStairs(
+    public static final Block deepslate_tile_stairs = new BlockModStairs(
         "deepslate_tile_stairs", deepslate_tiles.getDefaultState());
-    public static final Block cobbled_deepslate_wall = new sayys.depthsupdate.block.BlockModWall(
+    public static final Block cobbled_deepslate_wall = new BlockModWall(
         "cobbled_deepslate_wall", cobbled_deepslate);
-    public static final Block polished_deepslate_wall = new sayys.depthsupdate.block.BlockModWall(
+    public static final Block polished_deepslate_wall = new BlockModWall(
         "polished_deepslate_wall", polished_deepslate);
-    public static final Block deepslate_brick_wall = new sayys.depthsupdate.block.BlockModWall(
+    public static final Block deepslate_brick_wall = new BlockModWall(
         "deepslate_brick_wall",
         deepslate_bricks);
-    public static final Block deepslate_tile_wall = new sayys.depthsupdate.block.BlockModWall(
+    public static final Block deepslate_tile_wall = new BlockModWall(
         "deepslate_tile_wall",
         deepslate_tiles);
-    public static final Block calcite = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block calcite = new BlockDeepslateVariant(
         "calcite", 0.75F, 0.75F, SoundType.STONE);
-    public static final Block dripstone_block = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block dripstone_block = new BlockDeepslateVariant(
         "dripstone_block", 1.5F, 1.0F, SoundType.STONE);
-    public static final Block pointed_dripstone = new sayys.depthsupdate.block.BlockPointedDripstone();
-    public static final Block moss_block = new sayys.depthsupdate.block.BlockSimple(
+    public static final Block pointed_dripstone = new BlockPointedDripstone();
+    public static final Block moss_block = new BlockSimple(
         "moss_block", Material.GRASS, 0.1F, 0.1F, SoundType.PLANT);
-    public static final Block rooted_dirt = new sayys.depthsupdate.block.BlockSimple(
+    public static final Block rooted_dirt = new BlockSimple(
         "rooted_dirt", Material.GROUND, 0.5F, 0.5F, SoundType.GROUND);
-    public static final Block tuff = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block tuff = new BlockDeepslateVariant(
         "tuff", 1.5F, 6.0F, SoundType.STONE);
-    public static final Block amethyst_block = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block amethyst_block = new BlockDeepslateVariant(
         "amethyst_block", 1.5F, 1.5F, SoundType.GLASS);
-    public static final Block budding_amethyst = new sayys.depthsupdate.block.BlockBuddingAmethyst();
-    public static final Block small_amethyst_bud = new sayys.depthsupdate.block.BlockAmethystCluster("small_amethyst_bud", 3.0F, 8.0F, 1);
-    public static final Block medium_amethyst_bud = new sayys.depthsupdate.block.BlockAmethystCluster("medium_amethyst_bud", 4.0F, 10.0F, 2);
-    public static final Block large_amethyst_bud = new sayys.depthsupdate.block.BlockAmethystCluster("large_amethyst_bud", 5.0F, 10.0F, 4);
-    public static final Block amethyst_cluster = new sayys.depthsupdate.block.BlockAmethystCluster("amethyst_cluster", 7.0F, 10.0F, 5);
+    public static final Block budding_amethyst = new BlockBuddingAmethyst();
+    public static final Block small_amethyst_bud = new BlockAmethystCluster("small_amethyst_bud", 3.0F, 8.0F, 1);
+    public static final Block medium_amethyst_bud = new BlockAmethystCluster("medium_amethyst_bud", 4.0F, 10.0F, 2);
+    public static final Block large_amethyst_bud = new BlockAmethystCluster("large_amethyst_bud", 5.0F, 10.0F, 4);
+    public static final Block amethyst_cluster = new BlockAmethystCluster("amethyst_cluster", 7.0F, 10.0F, 5);
 
-    public static final Block moss_carpet = new sayys.depthsupdate.block.BlockMossCarpet();
-    public static final Block azalea_leaves = new sayys.depthsupdate.block.BlockModLeaves(
+    public static final Block moss_carpet = new BlockMossCarpet();
+    public static final Block azalea_leaves = new BlockModLeaves(
         "azalea_leaves");
-    public static final Block flowering_azalea_leaves = new sayys.depthsupdate.block.BlockModLeaves(
+    public static final Block flowering_azalea_leaves = new BlockModLeaves(
         "flowering_azalea_leaves");
-    public static final Block azalea = new sayys.depthsupdate.block.BlockAzalea("azalea");
-    public static final Block flowering_azalea = new sayys.depthsupdate.block.BlockAzalea("flowering_azalea");
-    public static final Block hanging_roots = new sayys.depthsupdate.block.BlockHangingRoots();
-    public static final Block small_dripleaf = new sayys.depthsupdate.block.BlockSmallDripleaf();
-    public static final Block big_dripleaf = new sayys.depthsupdate.block.BlockBigDripleaf();
-    public static final Block big_dripleaf_stem = new sayys.depthsupdate.block.BlockBigDripleafStem();
-    public static final Block smooth_basalt = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block azalea = new BlockAzalea("azalea");
+    public static final Block flowering_azalea = new BlockAzalea("flowering_azalea");
+    public static final Block hanging_roots = new BlockHangingRoots();
+    public static final Block small_dripleaf = new BlockSmallDripleaf();
+    public static final Block big_dripleaf = new BlockBigDripleaf();
+    public static final Block big_dripleaf_stem = new BlockBigDripleafStem();
+    public static final Block smooth_basalt = new BlockDeepslateVariant(
         "smooth_basalt", 1.25F, 4.2F, SoundType.STONE);
-    public static final Block raw_iron_block = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block raw_iron_block = new BlockDeepslateVariant(
         "raw_iron_block", 5.0F, 6.0F, SoundType.STONE);
-    public static final Block raw_gold_block = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block raw_gold_block = new BlockDeepslateVariant(
         "raw_gold_block", 5.0F, 6.0F, SoundType.STONE);
-    public static final Block raw_copper_block = new sayys.depthsupdate.block.BlockDeepslateVariant(
+    public static final Block raw_copper_block = new BlockDeepslateVariant(
         "raw_copper_block", 5.0F, 6.0F, SoundType.STONE);
-    public static final Block spore_blossom = new sayys.depthsupdate.block.BlockSporeBlossom();
-    public static final Block cave_vines = new sayys.depthsupdate.block.BlockCaveVines();
-    public static final Block copper_ore = new sayys.depthsupdate.block.BlockCopperOre();
-    public static final Block deepslate_coal_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_coal_ore");
-    public static final Block deepslate_iron_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_iron_ore");
-    public static final Block deepslate_gold_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_gold_ore");
-    public static final Block deepslate_redstone_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_redstone_ore");
-    public static final Block deepslate_lapis_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_lapis_ore");
-    public static final Block deepslate_diamond_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_diamond_ore");
-    public static final Block deepslate_emerald_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_emerald_ore");
-    public static final Block deepslate_copper_ore = new sayys.depthsupdate.block.BlockDeepslateOre("deepslate_copper_ore");
-    public static final Block cave_vines_plant = new sayys.depthsupdate.block.BlockCaveVinesPlant();
-    public static final Item glow_berries = new sayys.depthsupdate.item.ItemGlowBerries();
+    public static final Block spore_blossom = new BlockSporeBlossom();
+    public static final Block cave_vines = new BlockCaveVines();
+    public static final Block copper_ore = new BlockCopperOre();
+    public static final Block deepslate_coal_ore = new BlockDeepslateOre("deepslate_coal_ore");
+    public static final Block deepslate_iron_ore = new BlockDeepslateOre("deepslate_iron_ore");
+    public static final Block deepslate_gold_ore = new BlockDeepslateOre("deepslate_gold_ore");
+    public static final Block deepslate_redstone_ore = new BlockDeepslateOre("deepslate_redstone_ore");
+    public static final Block deepslate_lapis_ore = new BlockDeepslateOre("deepslate_lapis_ore");
+    public static final Block deepslate_diamond_ore = new BlockDeepslateOre("deepslate_diamond_ore");
+    public static final Block deepslate_emerald_ore = new BlockDeepslateOre("deepslate_emerald_ore");
+    public static final Block deepslate_copper_ore = new BlockDeepslateOre("deepslate_copper_ore");
+    public static final Block cave_vines_plant = new BlockCaveVinesPlant();
+    public static final Item glow_berries = new ItemGlowBerries();
     public static final Item amethyst_shard = new Item().setRegistryName(Reference.MOD_ID, "amethyst_shard").setTranslationKey("amethyst_shard").setCreativeTab(CreativeTabs.MATERIALS);
     public static final Item raw_iron = new Item().setRegistryName(Reference.MOD_ID, "raw_iron").setTranslationKey("raw_iron").setCreativeTab(CreativeTabs.MATERIALS);
     public static final Item raw_gold = new Item().setRegistryName(Reference.MOD_ID, "raw_gold").setTranslationKey("raw_gold").setCreativeTab(CreativeTabs.MATERIALS);
@@ -123,7 +148,7 @@ public class RegistryHandler {
 
     @SubscribeEvent
     public static void registerBlocks(RegistryEvent.Register<Block> event) {
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             event.getRegistry().registerAll(
                 deepslate, cobbled_deepslate, infested_deepslate, polished_deepslate,
                 deepslate_bricks, deepslate_tiles, chiseled_deepslate, cracked_deepslate_bricks,
@@ -132,21 +157,21 @@ public class RegistryHandler {
                 deepslate_tile_wall, deepslate_slab_half, deepslate_slab_double
             );
         }
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCalcite) event.getRegistry().register(calcite);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableTuff) event.getRegistry().register(tuff);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) event.getRegistry().register(smooth_basalt);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAmethystFamily) event.getRegistry().registerAll(
+        if (DepthsUpdateConfig.REGISTRY.enableCalcite) event.getRegistry().register(calcite);
+        if (DepthsUpdateConfig.REGISTRY.enableTuff) event.getRegistry().register(tuff);
+        if (DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) event.getRegistry().register(smooth_basalt);
+        if (DepthsUpdateConfig.REGISTRY.enableAmethystFamily) event.getRegistry().registerAll(
             amethyst_block, budding_amethyst, small_amethyst_bud, medium_amethyst_bud, large_amethyst_bud, amethyst_cluster);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableMossFamily) event.getRegistry().registerAll(moss_block, moss_carpet);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) event.getRegistry().registerAll(azalea_leaves, flowering_azalea_leaves, azalea, flowering_azalea, hanging_roots);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSporeBlossom) event.getRegistry().register(spore_blossom);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) event.getRegistry().registerAll(dripstone_block, pointed_dripstone);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripleafFamily) event.getRegistry().registerAll(small_dripleaf, big_dripleaf, big_dripleaf_stem);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) event.getRegistry().registerAll(cave_vines, cave_vines_plant);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRootedDirt) event.getRegistry().register(rooted_dirt);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) event.getRegistry().registerAll(raw_iron_block, raw_gold_block, raw_copper_block);
+        if (DepthsUpdateConfig.REGISTRY.enableMossFamily) event.getRegistry().registerAll(moss_block, moss_carpet);
+        if (DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) event.getRegistry().registerAll(azalea_leaves, flowering_azalea_leaves, azalea, flowering_azalea, hanging_roots);
+        if (DepthsUpdateConfig.REGISTRY.enableSporeBlossom) event.getRegistry().register(spore_blossom);
+        if (DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) event.getRegistry().registerAll(dripstone_block, pointed_dripstone);
+        if (DepthsUpdateConfig.REGISTRY.enableDripleafFamily) event.getRegistry().registerAll(small_dripleaf, big_dripleaf, big_dripleaf_stem);
+        if (DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) event.getRegistry().registerAll(cave_vines, cave_vines_plant);
+        if (DepthsUpdateConfig.REGISTRY.enableRootedDirt) event.getRegistry().register(rooted_dirt);
+        if (DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) event.getRegistry().registerAll(raw_iron_block, raw_gold_block, raw_copper_block);
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             event.getRegistry().registerAll(copper_ore, deepslate_coal_ore, deepslate_iron_ore, deepslate_gold_ore,
                 deepslate_redstone_ore, deepslate_lapis_ore, deepslate_diamond_ore, deepslate_emerald_ore, deepslate_copper_ore);
         }
@@ -154,7 +179,7 @@ public class RegistryHandler {
 
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             registerItemBlock(event, deepslate);
             registerItemBlock(event, cobbled_deepslate);
             registerItemBlock(event, infested_deepslate);
@@ -172,16 +197,16 @@ public class RegistryHandler {
             registerItemBlock(event, polished_deepslate_wall);
             registerItemBlock(event, deepslate_brick_wall);
             registerItemBlock(event, deepslate_tile_wall);
-            event.getRegistry().register(new sayys.depthsupdate.block.ItemModSlab(deepslate_slab_half,
+            event.getRegistry().register(new ItemModSlab(deepslate_slab_half,
                 deepslate_slab_half, deepslate_slab_double)
                 .setRegistryName(deepslate_slab_half.getRegistryName()));
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCalcite) registerItemBlock(event, calcite);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableTuff) registerItemBlock(event, tuff);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) registerItemBlock(event, smooth_basalt);
+        if (DepthsUpdateConfig.REGISTRY.enableCalcite) registerItemBlock(event, calcite);
+        if (DepthsUpdateConfig.REGISTRY.enableTuff) registerItemBlock(event, tuff);
+        if (DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) registerItemBlock(event, smooth_basalt);
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAmethystFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableAmethystFamily) {
             registerItemBlock(event, amethyst_block);
             registerItemBlock(event, budding_amethyst);
             registerItemBlock(event, small_amethyst_bud);
@@ -190,11 +215,11 @@ public class RegistryHandler {
             registerItemBlock(event, amethyst_cluster);
             event.getRegistry().registerAll(amethyst_shard, raw_iron, raw_gold, raw_copper, copper_ingot);
         }
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableMossFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableMossFamily) {
             registerItemBlock(event, moss_block);
             registerItemBlock(event, moss_carpet);
         }
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) {
             registerItemBlock(event, azalea_leaves);
             registerItemBlock(event, flowering_azalea_leaves);
             registerItemBlock(event, azalea);
@@ -202,28 +227,28 @@ public class RegistryHandler {
             registerItemBlock(event, hanging_roots);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSporeBlossom) registerItemBlock(event, spore_blossom);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) {
+        if (DepthsUpdateConfig.REGISTRY.enableSporeBlossom) registerItemBlock(event, spore_blossom);
+        if (DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) {
             registerItemBlock(event, dripstone_block);
             registerItemBlock(event, pointed_dripstone);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripleafFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDripleafFamily) {
             registerItemBlock(event, small_dripleaf);
             registerItemBlock(event, big_dripleaf);
         }
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) {
+        if (DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) {
             event.getRegistry().register(glow_berries);
         }
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRootedDirt) registerItemBlock(event, rooted_dirt);
+        if (DepthsUpdateConfig.REGISTRY.enableRootedDirt) registerItemBlock(event, rooted_dirt);
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) {
+        if (DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) {
             registerItemBlock(event, raw_iron_block);
             registerItemBlock(event, raw_gold_block);
             registerItemBlock(event, raw_copper_block);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             registerItemBlock(event, copper_ore);
             registerItemBlock(event, deepslate_coal_ore);
             registerItemBlock(event, deepslate_iron_ore);
@@ -242,7 +267,7 @@ public class RegistryHandler {
 
     @SubscribeEvent
     public static void registerModels(ModelRegistryEvent event) {
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             registerModel(deepslate);
             registerModel(cobbled_deepslate);
             registerModel(infested_deepslate);
@@ -260,18 +285,18 @@ public class RegistryHandler {
             registerModel(polished_deepslate_wall, "variant=cobblestone");
             registerModel(deepslate_brick_wall, "variant=cobblestone");
             registerModel(deepslate_tile_wall, "variant=cobblestone");
-            for (sayys.depthsupdate.block.BlockModSlab.Variant variant : sayys.depthsupdate.block.BlockModSlab.Variant.values()) {
+            for (BlockModSlab.Variant variant : BlockModSlab.Variant.values()) {
                 ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(deepslate_slab_half),
                     variant.getMetadata(),
                     new ModelResourceLocation(Reference.MOD_ID + ":deepslate_slab_" + variant.getName(), "inventory"));
             }
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCalcite) registerModel(calcite);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableTuff) registerModel(tuff);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) registerModel(smooth_basalt);
+        if (DepthsUpdateConfig.REGISTRY.enableCalcite) registerModel(calcite);
+        if (DepthsUpdateConfig.REGISTRY.enableTuff) registerModel(tuff);
+        if (DepthsUpdateConfig.REGISTRY.enableSmoothBasalt) registerModel(smooth_basalt);
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAmethystFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableAmethystFamily) {
             registerModel(amethyst_block);
             registerModel(budding_amethyst);
             registerModel(small_amethyst_bud);
@@ -279,19 +304,19 @@ public class RegistryHandler {
             registerModel(large_amethyst_bud);
             registerModel(amethyst_cluster);
 
-            ModelLoader.setCustomModelResourceLocation(amethyst_shard, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(amethyst_shard.getRegistryName(), "inventory"));
-            ModelLoader.setCustomModelResourceLocation(raw_iron, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(raw_iron.getRegistryName(), "inventory"));
-            ModelLoader.setCustomModelResourceLocation(raw_gold, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(raw_gold.getRegistryName(), "inventory"));
-            ModelLoader.setCustomModelResourceLocation(raw_copper, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(raw_copper.getRegistryName(), "inventory"));
-            ModelLoader.setCustomModelResourceLocation(copper_ingot, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(copper_ingot.getRegistryName(), "inventory"));
+            ModelLoader.setCustomModelResourceLocation(amethyst_shard, 0, new ModelResourceLocation(amethyst_shard.getRegistryName(), "inventory"));
+            ModelLoader.setCustomModelResourceLocation(raw_iron, 0, new ModelResourceLocation(raw_iron.getRegistryName(), "inventory"));
+            ModelLoader.setCustomModelResourceLocation(raw_gold, 0, new ModelResourceLocation(raw_gold.getRegistryName(), "inventory"));
+            ModelLoader.setCustomModelResourceLocation(raw_copper, 0, new ModelResourceLocation(raw_copper.getRegistryName(), "inventory"));
+            ModelLoader.setCustomModelResourceLocation(copper_ingot, 0, new ModelResourceLocation(copper_ingot.getRegistryName(), "inventory"));
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableMossFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableMossFamily) {
             registerModel(moss_block);
             registerModel(moss_carpet);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableAzaleaFamily) {
             registerModel(azalea_leaves);
             registerModel(flowering_azalea_leaves);
             registerModel(azalea);
@@ -299,31 +324,31 @@ public class RegistryHandler {
             registerModel(hanging_roots);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableSporeBlossom) registerModel(spore_blossom);
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) {
+        if (DepthsUpdateConfig.REGISTRY.enableSporeBlossom) registerModel(spore_blossom);
+        if (DepthsUpdateConfig.REGISTRY.enableDripstoneBlock) {
             registerModel(dripstone_block);
-            ModelLoader.setCustomStateMapper(pointed_dripstone, (new net.minecraft.client.renderer.block.statemap.StateMap.Builder()).ignore(sayys.depthsupdate.block.BlockPointedDripstone.WATERLOGGED).build());
+            ModelLoader.setCustomStateMapper(pointed_dripstone, (new StateMap.Builder()).ignore(BlockPointedDripstone.WATERLOGGED).build());
             registerModel(pointed_dripstone);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDripleafFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDripleafFamily) {
             registerModel(small_dripleaf);
             registerModel(big_dripleaf);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) {
-            ModelLoader.setCustomModelResourceLocation(glow_berries, 0, new net.minecraft.client.renderer.block.model.ModelResourceLocation(glow_berries.getRegistryName(), "inventory"));
+        if (DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries) {
+            ModelLoader.setCustomModelResourceLocation(glow_berries, 0, new ModelResourceLocation(glow_berries.getRegistryName(), "inventory"));
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRootedDirt) registerModel(rooted_dirt);
+        if (DepthsUpdateConfig.REGISTRY.enableRootedDirt) registerModel(rooted_dirt);
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) {
+        if (DepthsUpdateConfig.REGISTRY.enableRawOreBlocks) {
             registerModel(raw_iron_block);
             registerModel(raw_gold_block);
             registerModel(raw_copper_block);
         }
 
-        if (sayys.depthsupdate.DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
+        if (DepthsUpdateConfig.REGISTRY.enableDeepslateFamily) {
             registerModel(copper_ore);
             registerModel(deepslate_coal_ore);
             registerModel(deepslate_iron_ore);
@@ -354,7 +379,6 @@ public class RegistryHandler {
         GameRegistry.addSmelting(deepslate_redstone_ore, new ItemStack(Items.REDSTONE), 0.7f);
         GameRegistry.addSmelting(deepslate_lapis_ore, new ItemStack(Items.DYE, 1, 4), 0.2f);
         GameRegistry.addSmelting(deepslate_diamond_ore, new ItemStack(Items.DIAMOND), 1.0f);
-        GameRegistry.addSmelting(deepslate_emerald_ore, new ItemStack(Items.EMERALD), 1.0f);
         GameRegistry.addSmelting(deepslate_emerald_ore, new ItemStack(Items.EMERALD), 1.0f);
         GameRegistry.addSmelting(deepslate_copper_ore, new ItemStack(copper_ingot), 0.7f);
 
