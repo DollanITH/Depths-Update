@@ -1,6 +1,7 @@
 {
-  "parent": "block/cube_all",
+  "parent": "block/cube_column",
   "textures": {
-    "all": "depthsupdate:blocks/deepslate"
+    "end": "depthsupdate:blocks/deepslate_top",
+    "side": "depthsupdate:blocks/deepslate"
   }
 }

@@ -1,5 +1,6 @@
 package sayys.depthsupdate.mixin;
 
+import sayys.depthsupdate.util.DimensionHelper;
 import net.minecraft.world.chunk.ChunkPrimer;
 import org.jspecify.annotations.NonNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,7 +24,7 @@ public abstract class MixinChunkPrimer {
 
     @ModifyConstant(method = "findGroundBlockIdx", constant = @Constant(intValue = 255))
     private int depthsupdate$modifyFindGroundMaxY(int original) {
-        return 255;
+        return DimensionHelper.EXTENDED_MAX_Y - 1;
     }
 
     @ModifyConstant(method = "findGroundBlockIdx", constant = @Constant(intValue = 0))
