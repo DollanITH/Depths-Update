@@ -6,6 +6,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.MapGenBase;
 import net.minecraft.world.gen.MapGenRavine;
@@ -27,7 +28,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
     protected abstract boolean isOceanBlock(ChunkPrimer data, int x, int y, int z, int chunkX, int chunkZ);
 
     @Shadow
-    protected abstract boolean isExceptionBiome(net.minecraft.world.biome.Biome biome);
+    protected abstract boolean isExceptionBiome(Biome biome);
 
     @Shadow
     protected abstract boolean isTopBlock(ChunkPrimer data, int x, int y, int z, int chunkX, int chunkZ);
@@ -45,7 +46,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
     @Inject(method = "digBlock", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$digBlock(ChunkPrimer data, int x, int y, int z, int chunkX, int chunkZ, boolean foundTop, CallbackInfo ci) {
         ci.cancel();
-        net.minecraft.world.biome.Biome biome = this.world.getBiome(new BlockPos(x + chunkX * 16, 0, z + chunkZ * 16));
+        Biome biome = this.world.getBiome(new BlockPos(x + chunkX * 16, 0, z + chunkZ * 16));
         IBlockState state = data.getBlockState(x, y, z);
         IBlockState top = isExceptionBiome(biome) ? Blocks.GRASS.getDefaultState() : biome.topBlock;
         IBlockState filler = isExceptionBiome(biome) ? Blocks.DIRT.getDefaultState()

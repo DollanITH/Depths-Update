@@ -3,6 +3,7 @@ package sayys.depthsupdate.registry;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
+import net.minecraft.client.renderer.block.model.ModelBakery;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.client.renderer.block.statemap.StateMap;
 import net.minecraft.creativetab.CreativeTabs;
@@ -10,6 +11,8 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.init.Items;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.event.RegistryEvent;
@@ -45,6 +48,7 @@ import sayys.depthsupdate.block.BlockSmallDripleaf;
 import sayys.depthsupdate.block.BlockSporeBlossom;
 import sayys.depthsupdate.block.ItemModSlab;
 import sayys.depthsupdate.item.ItemGlowBerries;
+import sayys.depthsupdate.item.ItemSpyglass;
 
 @Mod.EventBusSubscriber(modid = Reference.MOD_ID)
 public class RegistryHandler {
@@ -139,6 +143,10 @@ public class RegistryHandler {
     public static final Item raw_gold = new Item().setRegistryName(Reference.MOD_ID, "raw_gold").setTranslationKey("raw_gold").setCreativeTab(CreativeTabs.MATERIALS);
     public static final Item raw_copper = new Item().setRegistryName(Reference.MOD_ID, "raw_copper").setTranslationKey("raw_copper").setCreativeTab(CreativeTabs.MATERIALS);
     public static final Item copper_ingot = new Item().setRegistryName(Reference.MOD_ID, "copper_ingot").setTranslationKey("copper_ingot").setCreativeTab(CreativeTabs.MATERIALS);
+    public static final Item spyglass = new ItemSpyglass();
+
+    public static final SoundEvent spyglass_use = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "item.spyglass.use")).setRegistryName(Reference.MOD_ID, "item.spyglass.use");
+    public static final SoundEvent spyglass_stop = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "item.spyglass.stop")).setRegistryName(Reference.MOD_ID, "item.spyglass.stop");
 
     public static final BlockModSlab.Double deepslate_slab_double = new BlockModSlab.Double(
         "deepslate_slab_double", Material.ROCK);
@@ -259,6 +267,17 @@ public class RegistryHandler {
             registerItemBlock(event, deepslate_emerald_ore);
             registerItemBlock(event, deepslate_copper_ore);
         }
+
+        if (DepthsUpdateConfig.REGISTRY.enableSpyglass) {
+            event.getRegistry().register(spyglass);
+        }
+    }
+
+    @SubscribeEvent
+    public static void registerSounds(RegistryEvent.Register<SoundEvent> event) {
+        if (DepthsUpdateConfig.REGISTRY.enableSpyglass) {
+            event.getRegistry().registerAll(spyglass_use, spyglass_stop);
+        }
     }
 
     private static void registerItemBlock(RegistryEvent.Register<Item> event, Block block) {
@@ -359,6 +378,11 @@ public class RegistryHandler {
             registerModel(deepslate_emerald_ore);
             registerModel(deepslate_copper_ore);
         }
+
+        if (DepthsUpdateConfig.REGISTRY.enableSpyglass) {
+            ModelLoader.setCustomModelResourceLocation(spyglass, 0, new ModelResourceLocation(spyglass.getRegistryName(), "inventory"));
+            ModelBakery.registerItemVariants(spyglass, spyglass.getRegistryName(), new ResourceLocation(Reference.MOD_ID, "item/spyglass_3d"));
+        }
     }
 
     public static void init() {
@@ -391,6 +415,13 @@ public class RegistryHandler {
         deepslate_diamond_ore.setHarvestLevel("pickaxe", 2);
         deepslate_emerald_ore.setHarvestLevel("pickaxe", 2);
         deepslate_copper_ore.setHarvestLevel("pickaxe", 1);
+
+        if (DepthsUpdateConfig.REGISTRY.enableSpyglass) {
+            GameRegistry.addShapedRecipe(new ResourceLocation(Reference.MOD_ID, "spyglass"), null, new ItemStack(spyglass),
+                " A ", " I ", " I ",
+                'A', amethyst_shard,
+                'I', copper_ingot);
+        }
     }
 
     private static void registerModel(Block block) {

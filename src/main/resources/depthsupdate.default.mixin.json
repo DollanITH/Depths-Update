@@ -10,7 +10,10 @@
     "MixinWorldClient",
     "MixinNetHandlerPlayClient",
     "MixinWorldClientImpl",
-    "IMixinViewFrustum"
+    "IMixinViewFrustum",
+    "client.MixinModelPlayer",
+    "client.MixinModelBiped",
+    "client.MixinLayerHeldItem"
   ],
   "mixins": [
     "MixinWorldProvider",

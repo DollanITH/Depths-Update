@@ -103,6 +103,9 @@ public class DepthsUpdateConfig {
         @Config.Name("Enable Raw Ore Blocks")
         @Config.Comment("Enables Raw Iron, Raw Gold, and Raw Copper blocks.")
         public boolean enableRawOreBlocks = true;
+
+        @Config.Name("Enable Spyglass")
+        public boolean enableSpyglass = true;
     }
 
     @Config.Name("Registry")

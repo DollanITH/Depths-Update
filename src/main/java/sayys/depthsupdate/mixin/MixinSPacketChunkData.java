@@ -28,7 +28,22 @@ public class MixinSPacketChunkData {
 
     @ModifyConstant(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", constant = @Constant(intValue = 65535))
     private int depthsupdate$modifyFullChunkCheck(int original) {
-        return depthsupdate$isExtended.get() ? 1048575 : original; // 20 chunks mask for extended
+        return depthsupdate$isExtended.get() ? 1048575 : original; // 20 sections mask for extended
+    }
+
+    @ModifyConstant(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", constant = @Constant(intValue = 16))
+    private static int depthsupdate$modifyLoopLimit(int original) {
+        return depthsupdate$isExtended.get() ? 20 : original;
+    }
+
+    @ModifyConstant(method = "calculateDataSize", constant = @Constant(intValue = 16), remap = true)
+    private int depthsupdate$modifyCalculateDataSizeLoop(int original) {
+        return depthsupdate$isExtended.get() ? 20 : original;
+    }
+
+    @ModifyConstant(method = "extractChunkData", constant = @Constant(intValue = 16), remap = true)
+    private int depthsupdate$modifyExtractChunkDataLoop(int original) {
+        return depthsupdate$isExtended.get() ? 20 : original;
     }
 
     @Inject(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", at = @At("RETURN"))

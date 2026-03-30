@@ -296,6 +296,12 @@ public class DepthsUpdateMod {
         assets.put("assets/minecraft/textures/block/deepslate_emerald_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_emerald_ore.png");
         assets.put("assets/minecraft/textures/block/deepslate_copper_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_copper_ore.png");
 
+        assets.put("assets/minecraft/textures/item/spyglass.png", "assets/" + Reference.MOD_ID + "/textures/items/spyglass.png");
+        assets.put("assets/minecraft/textures/item/spyglass_model.png", "assets/" + Reference.MOD_ID + "/textures/items/spyglass_model.png");
+        assets.put("assets/minecraft/textures/misc/spyglass_scope.png", "assets/" + Reference.MOD_ID + "/textures/misc/spyglass_scope.png");
+        assets.put("assets/minecraft/sounds/item/spyglass/use.ogg", "assets/" + Reference.MOD_ID + "/sounds/item/spyglass/use.ogg");
+        assets.put("assets/minecraft/sounds/item/spyglass/stop.ogg", "assets/" + Reference.MOD_ID + "/sounds/item/spyglass/stop.ogg");
+
         AssetMoverAPI.fromMinecraft("1.21.11", assets);
     }
 }

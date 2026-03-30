@@ -796,13 +796,13 @@ public abstract class MixinChunk {
             return;
         }
 
-        int offset = DimensionHelper.SECTION_OFFSET;
-        int i = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D) + offset;
-        int j = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D) + offset;
-        i = MathHelper.clamp(i, 0, this.entityLists.length - 1);
-        j = MathHelper.clamp(j, 0, this.entityLists.length - 1);
+        int startY = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D);
+        int endY = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D);
+        startY = MathHelper.clamp(startY, -4, 15);
+        endY = MathHelper.clamp(endY, -4, 15);
 
-        for (int k = i; k <= j; ++k) {
+        for (int y = startY; y <= endY; ++y) {
+            int k = DimensionHelper.toStorageIndex(this.world, y << 4);
             if (!this.entityLists[k].isEmpty()) {
                 for (Entity entity : this.entityLists[k]) {
                     if (entity.getEntityBoundingBox().intersects(aabb) && entity != entityIn) {
@@ -834,13 +834,13 @@ public abstract class MixinChunk {
             return;
         }
 
-        int offset = DimensionHelper.SECTION_OFFSET;
-        int i = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D) + offset;
-        int j = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D) + offset;
-        i = MathHelper.clamp(i, 0, this.entityLists.length - 1);
-        j = MathHelper.clamp(j, 0, this.entityLists.length - 1);
+        int startY = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D);
+        int endY = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D);
+        startY = MathHelper.clamp(startY, -4, 15);
+        endY = MathHelper.clamp(endY, -4, 15);
 
-        for (int k = i; k <= j; ++k) {
+        for (int y = startY; y <= endY; ++y) {
+            int k = DimensionHelper.toStorageIndex(this.world, y << 4);
             for (T t : this.entityLists[k].getByClass(entityClass)) {
                 if (t.getEntityBoundingBox().intersects(aabb) && (filter == null || filter.apply(t))) {
                     listToFill.add(t);
