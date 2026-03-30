@@ -10,9 +10,10 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.IHasModel;
+import sayys.depthsupdate.registry.AmethystRegistry;
 
-public class BlockBuddingAmethyst extends Block {
+public class BlockBuddingAmethyst extends Block implements IHasModel {
     public BlockBuddingAmethyst() {
         super(Material.GLASS);
 
@@ -34,13 +35,13 @@ public class BlockBuddingAmethyst extends Block {
             Block nextStage = null;
 
             if (canClusterGrowAtState(relativeState)) {
-                nextStage = RegistryHandler.small_amethyst_bud;
-            } else if (relativeState.getBlock() == RegistryHandler.small_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
-                nextStage = RegistryHandler.medium_amethyst_bud;
-            } else if (relativeState.getBlock() == RegistryHandler.medium_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
-                nextStage = RegistryHandler.large_amethyst_bud;
-            } else if (relativeState.getBlock() == RegistryHandler.large_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
-                nextStage = RegistryHandler.amethyst_cluster;
+                nextStage = AmethystRegistry.small_amethyst_bud;
+            } else if (relativeState.getBlock() == AmethystRegistry.small_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
+                nextStage = AmethystRegistry.medium_amethyst_bud;
+            } else if (relativeState.getBlock() == AmethystRegistry.medium_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
+                nextStage = AmethystRegistry.large_amethyst_bud;
+            } else if (relativeState.getBlock() == AmethystRegistry.large_amethyst_bud && relativeState.getValue(BlockAmethystCluster.FACING) == growDirection) {
+                nextStage = AmethystRegistry.amethyst_cluster;
             }
 
             if (nextStage != null) {

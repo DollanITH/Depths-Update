@@ -69,8 +69,10 @@ public abstract class BlockModSlab extends BlockSlab {
         }
 
         public static Variant byMetadata(int meta) {
-            if (meta < 0 || meta >= values().length)
+            if (meta < 0 || meta >= values().length) {
                 meta = 0;
+            }
+
             return values()[meta];
         }
     }

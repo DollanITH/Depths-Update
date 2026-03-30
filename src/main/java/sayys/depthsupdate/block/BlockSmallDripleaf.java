@@ -23,6 +23,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
@@ -30,7 +31,7 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.common.IShearable;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class BlockSmallDripleaf extends BlockBush implements IGrowable, IShearable {
     public static final PropertyDirection FACING = BlockHorizontal.FACING;
@@ -174,17 +175,17 @@ public class BlockSmallDripleaf extends BlockBush implements IGrowable, IShearab
         int targetHeadY = bottomPos.getY() + currentHeight - 1;
         mpos.setPos(bottomPos.getX(), bottomPos.getY(), bottomPos.getZ());
 
-        if (RegistryHandler.big_dripleaf == null || RegistryHandler.big_dripleaf_stem == null) return;
+        if (PlantRegistry.big_dripleaf == null || PlantRegistry.big_dripleaf_stem == null) return;
 
         while(mpos.getY() < targetHeadY) {
-            worldIn.setBlockState(mpos, RegistryHandler.big_dripleaf_stem.getDefaultState().withProperty(BlockHorizontal.FACING, facing), 3);
+            worldIn.setBlockState(mpos, PlantRegistry.big_dripleaf_stem.getDefaultState().withProperty(BlockHorizontal.FACING, facing), 3);
             mpos.move(EnumFacing.UP);
         }
 
-        worldIn.setBlockState(mpos, RegistryHandler.big_dripleaf.getDefaultState().withProperty(BlockHorizontal.FACING, facing), 3);
+        worldIn.setBlockState(mpos, PlantRegistry.big_dripleaf.getDefaultState().withProperty(BlockHorizontal.FACING, facing), 3);
     }
 
-    public enum EnumBlockHalf implements net.minecraft.util.IStringSerializable {
+    public enum EnumBlockHalf implements IStringSerializable {
         UPPER, LOWER;
 
         public String toString() { return this.getName(); }

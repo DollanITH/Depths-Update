@@ -1,8 +1,6 @@
 package sayys.depthsupdate;
 
-import com.cleanroommc.assetmover.AssetMoverAPI;
-import java.util.HashMap;
-import java.util.Map;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLConstructionEvent;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -13,6 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.NonNull;
 
+import sayys.depthsupdate.client.AssetHandler;
+import sayys.depthsupdate.registry.RegistryHandler;
 import sayys.depthsupdate.world.generation.DripstoneCavesGenerator;
 import sayys.depthsupdate.world.generation.LushCavesGenerator;
 
@@ -24,14 +24,6 @@ import sayys.depthsupdate.world.generation.LushCavesGenerator;
 public class DepthsUpdateMod {
     public static final Logger LOGGER = LogManager.getLogger(Reference.MOD_NAME);
 
-    @Mod.EventHandler
-    public void init(FMLInitializationEvent event) {
-        GameRegistry.registerWorldGenerator(new LushCavesGenerator(), 100);
-        GameRegistry.registerWorldGenerator(new DripstoneCavesGenerator(), 110);
-
-        sayys.depthsupdate.registry.RegistryHandler.init();
-    }
-
     /**
      * <a href="https://cleanroommc.com/wiki/forge-mod-development/event#overview">
      * Take a look at how many FMLStateEvents you can listen to via
@@ -41,267 +33,14 @@ public class DepthsUpdateMod {
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
     public void construct(@NonNull FMLConstructionEvent event) {
-        Map<String, String> assets = new HashMap<>();
+        AssetHandler.setup();
+    }
 
-        assets.put(
-            "assets/minecraft/textures/block/deepslate.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/deepslate_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cobbled_deepslate.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cobbled_deepslate.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/polished_deepslate.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/polished_deepslate.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/deepslate_bricks.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_bricks.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/deepslate_tiles.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_tiles.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/chiseled_deepslate.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/chiseled_deepslate.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cracked_deepslate_bricks.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cracked_deepslate_bricks.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cracked_deepslate_tiles.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cracked_deepslate_tiles.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/calcite.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/calcite.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/dripstone_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/dripstone_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/moss_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/moss_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/rooted_dirt.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/rooted_dirt.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/tuff.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/tuff.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/amethyst_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/amethyst_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/budding_amethyst.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/budding_amethyst.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/amethyst_cluster.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/amethyst_cluster.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/large_amethyst_bud.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/large_amethyst_bud.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/medium_amethyst_bud.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/medium_amethyst_bud.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/small_amethyst_bud.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/small_amethyst_bud.png"
-        );
+    @Mod.EventHandler
+    public void init(FMLInitializationEvent event) {
+        RegistryHandler.init();
 
-        assets.put(
-            "assets/minecraft/textures/block/smooth_basalt.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/smooth_basalt.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/raw_iron_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/raw_iron_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/raw_gold_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/raw_gold_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/raw_copper_block.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/raw_copper_block.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/azalea_leaves.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/azalea_leaves.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/flowering_azalea_leaves.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/flowering_azalea_leaves.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/azalea_side.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/azalea_side.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/azalea_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/azalea_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/azalea_plant.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/azalea_plant.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/flowering_azalea_side.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/flowering_azalea_side.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/flowering_azalea_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/flowering_azalea_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/hanging_roots.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/hanging_roots.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/big_dripleaf_side.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/big_dripleaf_side.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/big_dripleaf_stem.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/big_dripleaf_stem.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/big_dripleaf_tip.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/big_dripleaf_tip.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/big_dripleaf_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/big_dripleaf_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/small_dripleaf_side.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/small_dripleaf_side.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/small_dripleaf_stem_bottom.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/small_dripleaf_stem_bottom.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/small_dripleaf_stem_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/small_dripleaf_stem_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/small_dripleaf_top.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/small_dripleaf_top.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/spore_blossom.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/spore_blossom.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/spore_blossom_base.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/spore_blossom_base.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cave_vines.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cave_vines.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cave_vines_lit.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cave_vines_lit.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cave_vines_plant.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cave_vines_plant.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/cave_vines_plant_lit.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/cave_vines_plant_lit.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/item/glow_berries.png",
-            "assets/" + Reference.MOD_ID + "/textures/items/glow_berries.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/item/amethyst_shard.png",
-            "assets/" + Reference.MOD_ID + "/textures/items/amethyst_shard.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_down_base.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_down_base.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_up_base.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_up_base.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_down_frustum.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_down_frustum.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_up_frustum.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_up_frustum.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_down_middle.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_down_middle.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_up_middle.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_up_middle.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_down_tip.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_down_tip.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_up_tip.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_up_tip.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_down_tip_merge.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_down_tip_merge.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/block/pointed_dripstone_up_tip_merge.png",
-            "assets/" + Reference.MOD_ID + "/textures/blocks/pointed_dripstone_up_tip_merge.png"
-        );
-        assets.put(
-            "assets/minecraft/textures/item/pointed_dripstone.png",
-            "assets/" + Reference.MOD_ID + "/textures/items/pointed_dripstone.png"
-        );
-
-        assets.put("assets/minecraft/textures/item/raw_iron.png", "assets/" + Reference.MOD_ID + "/textures/items/raw_iron.png");
-        assets.put("assets/minecraft/textures/item/raw_gold.png", "assets/" + Reference.MOD_ID + "/textures/items/raw_gold.png");
-        assets.put("assets/minecraft/textures/item/raw_copper.png", "assets/" + Reference.MOD_ID + "/textures/items/raw_copper.png");
-        assets.put("assets/minecraft/textures/item/copper_ingot.png", "assets/" + Reference.MOD_ID + "/textures/items/copper_ingot.png");
-
-        assets.put("assets/minecraft/textures/block/copper_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/copper_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_coal_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_coal_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_iron_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_iron_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_gold_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_gold_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_redstone_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_redstone_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_lapis_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_lapis_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_diamond_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_diamond_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_emerald_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_emerald_ore.png");
-        assets.put("assets/minecraft/textures/block/deepslate_copper_ore.png", "assets/" + Reference.MOD_ID + "/textures/blocks/deepslate_copper_ore.png");
-
-        assets.put("assets/minecraft/textures/item/spyglass.png", "assets/" + Reference.MOD_ID + "/textures/items/spyglass.png");
-        assets.put("assets/minecraft/textures/item/spyglass_model.png", "assets/" + Reference.MOD_ID + "/textures/items/spyglass_model.png");
-        assets.put("assets/minecraft/textures/misc/spyglass_scope.png", "assets/" + Reference.MOD_ID + "/textures/misc/spyglass_scope.png");
-        assets.put("assets/minecraft/sounds/item/spyglass/use.ogg", "assets/" + Reference.MOD_ID + "/sounds/item/spyglass/use.ogg");
-        assets.put("assets/minecraft/sounds/item/spyglass/stop.ogg", "assets/" + Reference.MOD_ID + "/sounds/item/spyglass/stop.ogg");
-
-        AssetMoverAPI.fromMinecraft("1.21.11", assets);
+        LushCavesGenerator.register();
+        DripstoneCavesGenerator.register();
     }
 }

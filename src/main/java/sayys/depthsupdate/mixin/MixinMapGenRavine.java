@@ -57,7 +57,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
                 || state.getBlock() == filler.getBlock()
                 || state == deepslate || state.getBlock() == deepslate.getBlock()) {
             if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
-                data.setBlockState(x, y, z, Blocks.FLOWING_LAVA.getDefaultState());
+                data.setBlockState(x, y, z, Blocks.LAVA.getDefaultState());
             } else {
                 data.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
 

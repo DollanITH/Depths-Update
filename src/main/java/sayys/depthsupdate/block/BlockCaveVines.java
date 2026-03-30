@@ -8,7 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import sayys.depthsupdate.DepthsUpdateMod;
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class BlockCaveVines extends BlockCaveVinesBase implements IGrowable {
     public BlockCaveVines() {
@@ -28,7 +28,7 @@ public class BlockCaveVines extends BlockCaveVinesBase implements IGrowable {
                 boolean berriesOnNew = rand.nextFloat() < 0.11F;
                 worldIn.setBlockState(pos.down(), this.getDefaultState().withProperty(BERRIES, berriesOnNew));
 
-                worldIn.setBlockState(pos, RegistryHandler.cave_vines_plant.getDefaultState().withProperty(BERRIES, state.getValue(BERRIES)));
+                worldIn.setBlockState(pos, PlantRegistry.cave_vines_plant.getDefaultState().withProperty(BERRIES, state.getValue(BERRIES)));
             }
         }
     }

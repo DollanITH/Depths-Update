@@ -28,7 +28,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.jspecify.annotations.NonNull;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.DeepslateRegistry;
 
 public class BlockPointedDripstone extends Block {
     public static final PropertyEnum<DripstoneThickness> THICKNESS = PropertyEnum.create(
@@ -261,7 +261,7 @@ public class BlockPointedDripstone extends Block {
     }
 
     private static boolean canGrow(@NonNull IBlockState rootState, IBlockState aboveState) {
-        return rootState.getBlock() == RegistryHandler.dripstone_block && aboveState.getMaterial() == Material.WATER;
+        return rootState.getBlock() == DeepslateRegistry.dripstone_block && aboveState.getMaterial() == Material.WATER;
     }
 
     private static boolean canTipGrow(@NonNull IBlockState tipState, @NonNull World world, @NonNull BlockPos tipPos) {
@@ -315,7 +315,7 @@ public class BlockPointedDripstone extends Block {
     }
 
     private static void createDripstone(@NonNull World world, BlockPos pos, EnumFacing direction, DripstoneThickness thickness) {
-        IBlockState state = RegistryHandler.pointed_dripstone.getDefaultState()
+        IBlockState state = DeepslateRegistry.pointed_dripstone.getDefaultState()
             .withProperty(TIP_DIRECTION, direction)
             .withProperty(THICKNESS, thickness)
             .withProperty(WATERLOGGED, world.getBlockState(pos).getMaterial() == Material.WATER);

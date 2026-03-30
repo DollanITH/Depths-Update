@@ -5,7 +5,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.DeepslateRegistry;
 
 public class BlockUtils {
     private static IBlockState cachedDeepslateBlockState;
@@ -14,6 +14,23 @@ public class BlockUtils {
     private static IBlockState cachedRiverDebugBlockState;
 
     private BlockUtils() {}
+
+    private static final java.util.Map<Block, Block> DEEPSLATE_ORE_MAP = new java.util.HashMap<>();
+
+    static {}
+
+    public static void initializeOreMap() {
+        DEEPSLATE_ORE_MAP.clear();
+        DEEPSLATE_ORE_MAP.put(Blocks.COAL_ORE, DeepslateRegistry.deepslate_coal_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.IRON_ORE, DeepslateRegistry.deepslate_iron_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.GOLD_ORE, DeepslateRegistry.deepslate_gold_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.REDSTONE_ORE, DeepslateRegistry.deepslate_redstone_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.LIT_REDSTONE_ORE, DeepslateRegistry.deepslate_redstone_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.LAPIS_ORE, DeepslateRegistry.deepslate_lapis_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.DIAMOND_ORE, DeepslateRegistry.deepslate_diamond_ore);
+        DEEPSLATE_ORE_MAP.put(Blocks.EMERALD_ORE, DeepslateRegistry.deepslate_emerald_ore);
+        DEEPSLATE_ORE_MAP.put(DeepslateRegistry.copper_ore, DeepslateRegistry.deepslate_copper_ore);
+    }
 
     public static void clearCaches() {
         cachedDeepslateBlockState = null;
@@ -29,62 +46,52 @@ public class BlockUtils {
         Block block = Block.getBlockFromName(blockName);
 
         if (block == null || block == Blocks.AIR) {
-            cachedDeepslateBlockState = RegistryHandler.deepslate.getDefaultState();
+            cachedDeepslateBlockState = DeepslateRegistry.deepslate.getDefaultState();
         } else {
             cachedDeepslateBlockState = block.getDefaultState();
         }
+
         return cachedDeepslateBlockState;
     }
 
-    public static IBlockState getCheeseDebugBlockState() {
-        if (cachedCheeseDebugBlockState != null) return cachedCheeseDebugBlockState;
+    public static IBlockState getDebugBlockState(String blockName, Block fallback, IBlockState currentCache) {
+        if (currentCache != null) return currentCache;
 
-        String blockName = DepthsUpdateConfig.DEBUG.cheeseDebugBlock;
         Block block = Block.getBlockFromName(blockName);
 
-        cachedCheeseDebugBlockState = (block == null || block == Blocks.AIR) ? Blocks.SPONGE.getDefaultState() : block.getDefaultState();
+        return (block == null || block == Blocks.AIR) ? fallback.getDefaultState() : block.getDefaultState();
+    }
+
+    public static IBlockState getCheeseDebugBlockState() {
+        cachedCheeseDebugBlockState = getDebugBlockState(DepthsUpdateConfig.DEBUG.cheeseDebugBlock, Blocks.SPONGE, cachedCheeseDebugBlockState);
+
         return cachedCheeseDebugBlockState;
     }
 
     public static IBlockState getSpaghettiDebugBlockState() {
-        if (cachedSpaghettiDebugBlockState != null) return cachedSpaghettiDebugBlockState;
+        cachedSpaghettiDebugBlockState = getDebugBlockState(DepthsUpdateConfig.DEBUG.spaghettiDebugBlock, Blocks.GLASS, cachedSpaghettiDebugBlockState);
 
-        String blockName = DepthsUpdateConfig.DEBUG.spaghettiDebugBlock;
-        Block block = Block.getBlockFromName(blockName);
-
-        cachedSpaghettiDebugBlockState = (block == null || block == Blocks.AIR) ? Blocks.GLASS.getDefaultState() : block.getDefaultState();
         return cachedSpaghettiDebugBlockState;
     }
 
     public static IBlockState getRiverDebugBlockState() {
-        if (cachedRiverDebugBlockState != null) return cachedRiverDebugBlockState;
+        cachedRiverDebugBlockState = getDebugBlockState(DepthsUpdateConfig.DEBUG.riverDebugBlock, Blocks.GLOWSTONE, cachedRiverDebugBlockState);
 
-        String blockName = DepthsUpdateConfig.DEBUG.riverDebugBlock;
-        Block block = Block.getBlockFromName(blockName);
-
-        cachedRiverDebugBlockState = (block == null || block == Blocks.AIR) ? Blocks.GLOWSTONE.getDefaultState() : block.getDefaultState();
         return cachedRiverDebugBlockState;
     }
 
     public static IBlockState getDeepslateVariant(IBlockState oreState) {
         Block ore = oreState.getBlock();
+        Block deepVariant = DEEPSLATE_ORE_MAP.get(ore);
 
-        if (ore == Blocks.COAL_ORE) return RegistryHandler.deepslate_coal_ore.getDefaultState();
-        if (ore == Blocks.IRON_ORE) return RegistryHandler.deepslate_iron_ore.getDefaultState();
-        if (ore == Blocks.GOLD_ORE) return RegistryHandler.deepslate_gold_ore.getDefaultState();
-        if (ore == Blocks.REDSTONE_ORE || ore == Blocks.LIT_REDSTONE_ORE) return RegistryHandler.deepslate_redstone_ore.getDefaultState();
-        if (ore == Blocks.LAPIS_ORE) return RegistryHandler.deepslate_lapis_ore.getDefaultState();
-        if (ore == Blocks.DIAMOND_ORE) return RegistryHandler.deepslate_diamond_ore.getDefaultState();
-        if (ore == Blocks.EMERALD_ORE) return RegistryHandler.deepslate_emerald_ore.getDefaultState();
-        if (ore == RegistryHandler.copper_ore) return RegistryHandler.deepslate_copper_ore.getDefaultState();
-
-        return oreState;
+        return deepVariant != null ? deepVariant.getDefaultState() : oreState;
     }
 
     public static boolean isDeepslate(IBlockState state) {
         if (state == null) return false;
+
         Block block = state.getBlock();
 
-        return block == RegistryHandler.deepslate || (block.getRegistryName() != null && block.getRegistryName().toString().equals(DepthsUpdateConfig.deepslateBlock));
+        return block == DeepslateRegistry.deepslate || (block.getRegistryName() != null && block.getRegistryName().toString().equals(DepthsUpdateConfig.deepslateBlock));
     }
 }

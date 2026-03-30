@@ -15,6 +15,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
+import sayys.depthsupdate.registry.DeepslateRegistry;
 import sayys.depthsupdate.registry.RegistryHandler;
 
 public class BlockDeepslate extends BlockRotatedPillar {
@@ -38,7 +39,7 @@ public class BlockDeepslate extends BlockRotatedPillar {
 
     @Override
     public Item getItemDropped(IBlockState state, Random rand, int fortune) {
-        return Item.getItemFromBlock(RegistryHandler.cobbled_deepslate);
+        return Item.getItemFromBlock(DeepslateRegistry.cobbled_deepslate);
     }
 
     @Override

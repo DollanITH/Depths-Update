@@ -1,6 +1,7 @@
 package sayys.depthsupdate.item;
 
 import javax.annotation.Nullable;
+import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.EnumAction;
@@ -17,14 +18,14 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import sayys.depthsupdate.Reference;
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.StandaloneRegistry;
 
 public class ItemSpyglass extends Item {
     public ItemSpyglass() {
         this.setRegistryName(Reference.MOD_ID, "spyglass");
         this.setTranslationKey("spyglass");
         this.setMaxStackSize(1);
-        this.setCreativeTab(net.minecraft.creativetab.CreativeTabs.TOOLS);
+        this.setCreativeTab(CreativeTabs.TOOLS);
 
         this.addPropertyOverride(new ResourceLocation(Reference.MOD_ID, "in_hand"), new IItemPropertyGetter() {
             @Override
@@ -51,7 +52,7 @@ public class ItemSpyglass extends Item {
         playerIn.setActiveHand(handIn);
 
         if (!worldIn.isRemote) {
-            worldIn.playSound(null, playerIn.posX, playerIn.posY, playerIn.posZ, RegistryHandler.spyglass_use, SoundCategory.PLAYERS, 1.0F, 1.0F);
+            worldIn.playSound(null, playerIn.posX, playerIn.posY, playerIn.posZ, StandaloneRegistry.spyglass_use, SoundCategory.PLAYERS, 1.0F, 1.0F);
         }
 
         return new ActionResult<>(EnumActionResult.SUCCESS, itemstack);
@@ -60,7 +61,7 @@ public class ItemSpyglass extends Item {
     @Override
     public void onPlayerStoppedUsing(ItemStack stack, World worldIn, EntityLivingBase entityLiving, int timeLeft) {
         if (!worldIn.isRemote) {
-            worldIn.playSound(null, entityLiving.posX, entityLiving.posY, entityLiving.posZ, RegistryHandler.spyglass_stop, SoundCategory.PLAYERS, 1.0F, 1.0F);
+            worldIn.playSound(null, entityLiving.posX, entityLiving.posY, entityLiving.posZ, StandaloneRegistry.spyglass_stop, SoundCategory.PLAYERS, 1.0F, 1.0F);
         }
     }
 }

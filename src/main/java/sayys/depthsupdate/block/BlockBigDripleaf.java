@@ -21,9 +21,11 @@ import net.minecraft.init.Blocks;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.SoundCategory;
+import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -31,11 +33,11 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class BlockBigDripleaf extends Block implements IGrowable {
     public static final PropertyDirection FACING = BlockHorizontal.FACING;
-    public static final PropertyEnum<sayys.depthsupdate.block.BlockBigDripleaf.EnumTilt> TILT = PropertyEnum.create("tilt", sayys.depthsupdate.block.BlockBigDripleaf.EnumTilt.class);
+    public static final PropertyEnum<sayys.depthsupdate.block.BlockBigDripleaf.EnumTilt> TILT = PropertyEnum.create("tilt", EnumTilt.class);
 
     protected static final AxisAlignedBB SHAPE = new AxisAlignedBB(0.0D, 0.0D, 0.0D, 1.0D, 0.9375D, 1.0D);
     protected static final AxisAlignedBB LEAF_COLLISION_NONE = new AxisAlignedBB(0.0D, 0.6875D, 0.0D, 1.0D, 0.9375D, 1.0D);
@@ -83,8 +85,8 @@ public class BlockBigDripleaf extends Block implements IGrowable {
     }
 
     @SideOnly(Side.CLIENT)
-    public net.minecraft.util.BlockRenderLayer getRenderLayer() {
-        return net.minecraft.util.BlockRenderLayer.CUTOUT;
+    public BlockRenderLayer getRenderLayer() {
+        return BlockRenderLayer.CUTOUT;
     }
 
     @Override
@@ -92,7 +94,7 @@ public class BlockBigDripleaf extends Block implements IGrowable {
         IBlockState downState = worldIn.getBlockState(pos.down());
         Block downBlock = downState.getBlock();
 
-        return downBlock == this || (RegistryHandler.big_dripleaf_stem != null && downBlock == RegistryHandler.big_dripleaf_stem) || downState.isSideSolid(worldIn, pos.down(), EnumFacing.UP) || downBlock == Blocks.DIRT || downBlock == Blocks.GRASS || downBlock == Blocks.CLAY || downBlock == Blocks.FARMLAND;
+        return downBlock == this || (PlantRegistry.big_dripleaf_stem != null && downBlock == PlantRegistry.big_dripleaf_stem) || downState.isSideSolid(worldIn, pos.down(), EnumFacing.UP) || downBlock == Blocks.DIRT || downBlock == Blocks.GRASS || downBlock == Blocks.CLAY || downBlock == Blocks.FARMLAND;
     }
 
     @Override
@@ -134,7 +136,7 @@ public class BlockBigDripleaf extends Block implements IGrowable {
         }
     }
 
-    private void setTiltAndScheduleTick(IBlockState state, World world, BlockPos pos, EnumTilt tilt, @Nullable net.minecraft.util.SoundEvent sound) {
+    private void setTiltAndScheduleTick(IBlockState state, World world, BlockPos pos, EnumTilt tilt, @Nullable SoundEvent sound) {
         setTilt(state, world, pos, tilt);
 
         if (sound != null) {
@@ -143,9 +145,13 @@ public class BlockBigDripleaf extends Block implements IGrowable {
 
         int tickDelay = -1;
 
-        if (tilt == EnumTilt.UNSTABLE) tickDelay = 10;
-        else if (tilt == EnumTilt.PARTIAL) tickDelay = 10;
-        else if (tilt == EnumTilt.FULL) tickDelay = 100;
+        if (tilt == EnumTilt.UNSTABLE) {
+            tickDelay = 10;
+        } else if (tilt == EnumTilt.PARTIAL) {
+            tickDelay = 10;
+        } else if (tilt == EnumTilt.FULL) {
+            tickDelay = 100;
+        }
 
         if (tickDelay != -1) {
             world.scheduleUpdate(pos, this, tickDelay);
@@ -168,7 +174,7 @@ public class BlockBigDripleaf extends Block implements IGrowable {
         return entity.onGround && entity.posY > (double)((float)pos.getY() + 0.6875F);
     }
 
-    private static void playTiltSound(World level, BlockPos pos, net.minecraft.util.SoundEvent tiltSound) {
+    private static void playTiltSound(World level, BlockPos pos, SoundEvent tiltSound) {
         float pitch = 0.8F + level.rand.nextFloat() * 0.4F;
         level.playSound(null, pos, tiltSound, SoundCategory.BLOCKS, 1.0F, pitch);
     }
@@ -186,16 +192,14 @@ public class BlockBigDripleaf extends Block implements IGrowable {
     @Override
     public IBlockState getStateForPlacement(World world, BlockPos pos, EnumFacing facing, float hitX, float hitY, float hitZ, int meta, EntityLivingBase placer) {
         IBlockState belowState = world.getBlockState(pos.down());
-        boolean belowIsDripleafPart = belowState.getBlock() == this || (RegistryHandler.big_dripleaf_stem != null && belowState.getBlock() == RegistryHandler.big_dripleaf_stem);
+        boolean belowIsDripleafPart = belowState.getBlock() == this || (PlantRegistry.big_dripleaf_stem != null && belowState.getBlock() == PlantRegistry.big_dripleaf_stem);
 
         return this.getDefaultState().withProperty(FACING, belowIsDripleafPart ? belowState.getValue(FACING) : placer.getHorizontalFacing().getOpposite());
     }
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
-        return this.getDefaultState()
-                .withProperty(FACING, EnumFacing.byHorizontalIndex(meta & 3))
-                .withProperty(TILT, EnumTilt.values()[(meta >> 2) & 3]);
+        return this.getDefaultState().withProperty(FACING, EnumFacing.byHorizontalIndex(meta & 3)).withProperty(TILT, EnumTilt.values()[(meta >> 2) & 3]);
     }
 
     @Override
@@ -225,8 +229,8 @@ public class BlockBigDripleaf extends Block implements IGrowable {
     public void grow(World worldIn, Random rand, BlockPos pos, IBlockState state) {
         BlockPos upPos = pos.up();
 
-        if (worldIn.isAirBlock(upPos) && RegistryHandler.big_dripleaf_stem != null) {
-            worldIn.setBlockState(pos, RegistryHandler.big_dripleaf_stem.getDefaultState().withProperty(FACING, state.getValue(FACING)), 3);
+        if (worldIn.isAirBlock(upPos) && PlantRegistry.big_dripleaf_stem != null) {
+            worldIn.setBlockState(pos, PlantRegistry.big_dripleaf_stem.getDefaultState().withProperty(FACING, state.getValue(FACING)), 3);
             worldIn.setBlockState(upPos, state, 3);
         }
     }

@@ -8,7 +8,9 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 
-public class BlockDeepslateVariant extends Block {
+import sayys.depthsupdate.registry.IHasModel;
+
+public class BlockDeepslateVariant extends Block implements IHasModel {
     public BlockDeepslateVariant(String name, float hardness, float resistance, SoundType soundType) {
         super(Material.ROCK);
 

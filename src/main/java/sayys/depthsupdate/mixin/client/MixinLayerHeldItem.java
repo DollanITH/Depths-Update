@@ -45,6 +45,7 @@ public class MixinLayerHeldItem {
         GlStateManager.scale(0.625f, -0.625f, -0.625f);
 
         GlStateManager.translate((hand == EnumHandSide.LEFT ? -0.15625F : 0.15625F) - 0.234375F, -0.015625F, -0.3125F);
+        // spyglass eye offset
 
         Minecraft.getMinecraft().getItemRenderer().renderItem(player, stack, ItemCameraTransforms.TransformType.HEAD);
         GlStateManager.popMatrix();

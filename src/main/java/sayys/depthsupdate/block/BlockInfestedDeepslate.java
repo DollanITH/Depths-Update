@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import sayys.depthsupdate.DepthsUpdateMod;
+import sayys.depthsupdate.registry.DeepslateRegistry;
 import sayys.depthsupdate.registry.RegistryHandler;
 
 public class BlockInfestedDeepslate extends BlockRotatedPillar {
@@ -44,6 +45,6 @@ public class BlockInfestedDeepslate extends BlockRotatedPillar {
 
     @Override
     protected ItemStack getSilkTouchDrop(IBlockState state) {
-        return new ItemStack(RegistryHandler.deepslate);
+        return new ItemStack(DeepslateRegistry.deepslate);
     }
 }

@@ -8,6 +8,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 
+import sayys.depthsupdate.registry.DeepslateRegistry;
 import sayys.depthsupdate.registry.RegistryHandler;
 
 public class BlockCopperOre extends Block {
@@ -24,7 +25,7 @@ public class BlockCopperOre extends Block {
 
     @Override
     public Item getItemDropped(IBlockState state, Random rand, int fortune) {
-        return RegistryHandler.raw_copper;
+        return DeepslateRegistry.raw_copper;
     }
 
     @Override

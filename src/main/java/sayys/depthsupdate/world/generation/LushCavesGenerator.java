@@ -6,6 +6,7 @@ import net.minecraft.block.BlockTallGrass;
 import net.minecraft.block.BlockVine;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -13,13 +14,19 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraftforge.fml.common.IWorldGenerator;
+import net.minecraftforge.fml.common.registry.GameRegistry;
 import org.jspecify.annotations.NonNull;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.block.BlockCaveVines;
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.DeepslateRegistry;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class LushCavesGenerator implements IWorldGenerator {
+    public static void register() {
+        GameRegistry.registerWorldGenerator(new LushCavesGenerator(), 100);
+    }
+
     @Override
     public void generate(Random random, int chunkX, int chunkZ, World world, IChunkGenerator chunkGenerator, IChunkProvider chunkProvider) {
         if (!DepthsUpdateConfig.lushCaves.enableLushCaves) {
@@ -44,6 +51,7 @@ public class LushCavesGenerator implements IWorldGenerator {
             int z = chunkZ * 16 + random.nextInt(16);
 
             BlockPos centerPos = new BlockPos(x, y, z);
+
             generateLushCave(world, random, centerPos);
         }
     }
@@ -76,7 +84,7 @@ public class LushCavesGenerator implements IWorldGenerator {
     private void decorateCaveBlock(@NonNull World world, Random random, BlockPos pos) {
         IBlockState state = world.getBlockState(pos);
 
-        if (!state.getBlock().isAir(state, world, pos) && state.getMaterial() != net.minecraft.block.material.Material.WATER) {
+        if (!state.getBlock().isAir(state, world, pos) && state.getMaterial() != Material.WATER) {
             return;
         }
 
@@ -85,8 +93,8 @@ public class LushCavesGenerator implements IWorldGenerator {
         Block blockDown = stateDown.getBlock();
         Block blockUp = stateUp.getBlock();
 
-        boolean isFloorGround = (blockDown == Blocks.STONE || blockDown == Blocks.DIRT || blockDown == RegistryHandler.deepslate);
-        boolean isCeilingGround = (blockUp == Blocks.STONE || blockUp == Blocks.DIRT || blockUp == RegistryHandler.deepslate);
+        boolean isFloorGround = (blockDown == Blocks.STONE || blockDown == Blocks.DIRT || blockDown == DeepslateRegistry.deepslate);
+        boolean isCeilingGround = (blockUp == Blocks.STONE || blockUp == Blocks.DIRT || blockUp == DeepslateRegistry.deepslate);
 
         if (isFloorGround) {
             decorateFloor(world, random, pos);
@@ -102,17 +110,17 @@ public class LushCavesGenerator implements IWorldGenerator {
         int floorType = random.nextInt(100);
 
         if (floorType < 70) {
-            world.setBlockState(floorPos, RegistryHandler.moss_block.getDefaultState(), 2);
+            world.setBlockState(floorPos, PlantRegistry.moss_block.getDefaultState(), 2);
 
             if (world.isAirBlock(pos)) {
                 int decType = random.nextInt(100);
 
                 if (decType < 20) {
-                    world.setBlockState(pos, RegistryHandler.moss_carpet.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.moss_carpet.getDefaultState(), 2);
                 } else if (decType < 25) {
-                    world.setBlockState(pos, RegistryHandler.azalea.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.azalea.getDefaultState(), 2);
                 } else if (decType < 27) {
-                    world.setBlockState(pos, RegistryHandler.flowering_azalea.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.flowering_azalea.getDefaultState(), 2);
                 } else if (decType < 65) {
                     world.setBlockState(pos, Blocks.TALLGRASS.getDefaultState().withProperty(BlockTallGrass.TYPE, BlockTallGrass.EnumType.GRASS), 2);
                 }
@@ -122,10 +130,10 @@ public class LushCavesGenerator implements IWorldGenerator {
 
             if (world.isAirBlock(pos) || world.getBlockState(pos).getMaterial() == Material.WATER) {
                 if (random.nextBoolean()) {
-                    world.setBlockState(pos, RegistryHandler.small_dripleaf.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.small_dripleaf.getDefaultState(), 2);
                 } else if (world.isAirBlock(pos.up())) {
-                    world.setBlockState(pos, RegistryHandler.big_dripleaf_stem.getDefaultState(), 2);
-                    world.setBlockState(pos.up(), RegistryHandler.big_dripleaf.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.big_dripleaf_stem.getDefaultState(), 2);
+                    world.setBlockState(pos.up(), PlantRegistry.big_dripleaf.getDefaultState(), 2);
                 }
             }
         }
@@ -135,13 +143,13 @@ public class LushCavesGenerator implements IWorldGenerator {
         BlockPos ceilingPos = pos.up();
 
         if (random.nextBoolean()) {
-            world.setBlockState(ceilingPos, RegistryHandler.moss_block.getDefaultState(), 2);
+            world.setBlockState(ceilingPos, PlantRegistry.moss_block.getDefaultState(), 2);
 
             if (world.isAirBlock(pos)) {
                 int decType = random.nextInt(100);
 
                 if (decType < 5) {
-                    world.setBlockState(pos, RegistryHandler.spore_blossom.getDefaultState(), 2);
+                    world.setBlockState(pos, PlantRegistry.spore_blossom.getDefaultState(), 2);
                 } else if (decType < 20) {
                     int vineLength = 2 + random.nextInt(6);
                     BlockPos currentPos = pos;
@@ -149,7 +157,7 @@ public class LushCavesGenerator implements IWorldGenerator {
                     for (int i = 0; i < vineLength; i++) {
                         if (world.isAirBlock(currentPos)) {
                             boolean hasBerries = random.nextFloat() < 0.11F;
-                            world.setBlockState(currentPos, RegistryHandler.cave_vines_plant.getDefaultState().withProperty(BlockCaveVines.BERRIES, hasBerries), 2);
+                            world.setBlockState(currentPos, PlantRegistry.cave_vines_plant.getDefaultState().withProperty(BlockCaveVines.BERRIES, hasBerries), 2);
                             currentPos = currentPos.down();
                         } else {
                             break;
@@ -158,7 +166,7 @@ public class LushCavesGenerator implements IWorldGenerator {
 
                     if (world.isAirBlock(currentPos.up())) {
                         boolean hasBerries = random.nextFloat() < 0.11F;
-                        world.setBlockState(currentPos.up(), RegistryHandler.cave_vines.getDefaultState().withProperty(BlockCaveVines.BERRIES, hasBerries), 2);
+                        world.setBlockState(currentPos.up(), PlantRegistry.cave_vines.getDefaultState().withProperty(BlockCaveVines.BERRIES, hasBerries), 2);
                     }
                 }
             }
@@ -176,17 +184,23 @@ public class LushCavesGenerator implements IWorldGenerator {
             Block blockHit = hitState.getBlock();
 
             if (hitState.isOpaqueCube()) {
-                if (blockHit == Blocks.STONE || blockHit == RegistryHandler.deepslate) {
+                if (blockHit == Blocks.STONE || blockHit == DeepslateRegistry.deepslate) {
                     if (random.nextInt(10) == 0) {
-                        world.setBlockState(offset, RegistryHandler.moss_block.getDefaultState(), 2);
+                        world.setBlockState(offset, PlantRegistry.moss_block.getDefaultState(), 2);
                     }
                 }
+
                 if (!placedVine && random.nextInt(5) == 0) {
                     try {
-                        net.minecraft.block.properties.PropertyBool prop = BlockVine.NORTH;
-                        if (facing == EnumFacing.SOUTH) prop = BlockVine.SOUTH;
-                        else if (facing == EnumFacing.EAST) prop = BlockVine.EAST;
-                        else if (facing == EnumFacing.WEST) prop = BlockVine.WEST;
+                        PropertyBool prop = BlockVine.NORTH;
+
+                        if (facing == EnumFacing.SOUTH) {
+                            prop = BlockVine.SOUTH;
+                        } else if (facing == EnumFacing.EAST) {
+                            prop = BlockVine.EAST;
+                        } else if (facing == EnumFacing.WEST) {
+                            prop = BlockVine.WEST;
+                        }
 
                         world.setBlockState(pos, Blocks.VINE.getDefaultState().withProperty(prop, true).withProperty(BlockVine.UP, false), 2);
                         placedVine = true;

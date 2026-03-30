@@ -2,6 +2,7 @@ package sayys.depthsupdate.item;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
@@ -14,7 +15,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import sayys.depthsupdate.DepthsUpdateMod;
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class ItemGlowBerries extends ItemFood {
     public ItemGlowBerries() {
@@ -22,7 +23,7 @@ public class ItemGlowBerries extends ItemFood {
 
         this.setRegistryName("depthsupdate", "glow_berries");
         this.setTranslationKey("glow_berries");
-        this.setCreativeTab(net.minecraft.creativetab.CreativeTabs.FOOD);
+        this.setCreativeTab(CreativeTabs.FOOD);
     }
 
     @Override
@@ -40,11 +41,11 @@ public class ItemGlowBerries extends ItemFood {
 
         IBlockState iblockstate = worldIn.getBlockState(pos);
         Block block = iblockstate.getBlock();
-        IBlockState placeState = RegistryHandler.cave_vines.getDefaultState();
+        IBlockState placeState = PlantRegistry.cave_vines.getDefaultState();
 
-        if (worldIn.isAirBlock(placePos) && RegistryHandler.cave_vines.canPlaceBlockAt(worldIn, placePos)) {
+        if (worldIn.isAirBlock(placePos) && PlantRegistry.cave_vines.canPlaceBlockAt(worldIn, placePos)) {
             worldIn.setBlockState(placePos, placeState, 11);
-            worldIn.playSound(player, placePos, RegistryHandler.cave_vines.getSoundType().getPlaceSound(), SoundCategory.BLOCKS, (RegistryHandler.cave_vines.getSoundType().getVolume() + 1.0F) / 2.0F, RegistryHandler.cave_vines.getSoundType().getPitch() * 0.8F);
+            worldIn.playSound(player, placePos, PlantRegistry.cave_vines.getSoundType().getPlaceSound(), SoundCategory.BLOCKS, (PlantRegistry.cave_vines.getSoundType().getVolume() + 1.0F) / 2.0F, PlantRegistry.cave_vines.getSoundType().getPitch() * 0.8F);
             itemstack.shrink(1);
             return EnumActionResult.SUCCESS;
         }

@@ -11,11 +11,13 @@ import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -23,9 +25,9 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.IHasModel;
 
-public class BlockAmethystCluster extends Block {
+public class BlockAmethystCluster extends Block implements IHasModel {
     public static final PropertyDirection FACING = PropertyDirection.create("facing");
 
     private final AxisAlignedBB[] shapes;
@@ -83,8 +85,7 @@ public class BlockAmethystCluster extends Block {
 
     @Override
     public IBlockState getStateFromMeta(int meta) {
-        return this.getDefaultState()
-            .withProperty(FACING, EnumFacing.byIndex(meta & 7));
+        return this.getDefaultState().withProperty(FACING, EnumFacing.byIndex(meta & 7));
     }
 
     @Override
@@ -127,39 +128,54 @@ public class BlockAmethystCluster extends Block {
     }
 
     @Override
-    public Item getItemDropped(IBlockState state, Random rand, int fortune) {
-        if (this == RegistryHandler.amethyst_cluster) {
-            return RegistryHandler.amethyst_shard;
-        }
-
-        return super.getItemDropped(state, rand, fortune);
+    public boolean canSilkHarvest(World world, BlockPos pos, IBlockState state, EntityPlayer player) {
+        return true;
     }
 
     @Override
-    public int quantityDropped(Random random) {
-        if (this == RegistryHandler.amethyst_cluster) {
-            return 2;
+    public void getDrops(NonNullList<ItemStack> drops, IBlockAccess world, BlockPos pos, IBlockState state, int fortune) {
+        if (this == sayys.depthsupdate.registry.AmethystRegistry.amethyst_cluster) {
+            Random rand = world instanceof World ? ((World) world).rand : new Random();
+            EntityPlayer player = harvesters.get();
+            boolean isPickaxe = false;
+
+            if (player != null) {
+                ItemStack heldItem = player.getHeldItemMainhand();
+
+                if (!heldItem.isEmpty() && heldItem.getItem().getToolClasses(heldItem).contains("pickaxe")) {
+                    isPickaxe = true;
+                }
+            }
+
+            int count = isPickaxe ? 4 : 2;
+
+            if (fortune > 0) {
+                if (fortune == 1) {
+                    if (rand.nextInt(3) == 0) {
+                        count *= 2;
+                    }
+                } else if (fortune == 2) {
+                    int r = rand.nextInt(4);
+
+                    if (r == 0) {
+                        count *= 2;
+                    } else if (r == 1) {
+                        count *= 3;
+                    }
+                } else {
+                    int r = rand.nextInt(5);
+
+                    if (r == 0) {
+                        count *= 2;
+                    } else if (r == 1) {
+                        count *= 3;
+                    } else if (r == 2) {
+                        count *= 4;
+                    }
+                }
+            }
+
+            drops.add(new ItemStack(sayys.depthsupdate.registry.AmethystRegistry.amethyst_shard, count));
         }
-
-        return 0;
-    }
-
-    @Override
-    public void getDrops(net.minecraft.util.NonNullList<ItemStack> drops, IBlockAccess world, BlockPos pos, IBlockState state, int fortune) {
-        if (this == RegistryHandler.amethyst_cluster) {
-            int count = 2;
-            super.getDrops(drops, world, pos, state, fortune);
-        } else {
-            super.getDrops(drops, world, pos, state, fortune);
-        }
-    }
-
-    @Override
-    public int quantityDroppedWithBonus(int fortune, Random random) {
-        if (this == RegistryHandler.amethyst_cluster) {
-            return 4 + random.nextInt(fortune + 1);
-        }
-
-        return 0;
     }
 }

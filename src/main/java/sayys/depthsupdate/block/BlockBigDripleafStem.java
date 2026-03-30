@@ -1,6 +1,7 @@
 package sayys.depthsupdate.block;
 
 import java.util.Random;
+import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.IGrowable;
@@ -25,7 +26,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.PlantRegistry;
 
 public class BlockBigDripleafStem extends Block implements IGrowable {
     public static final PropertyDirection FACING = BlockHorizontal.FACING;
@@ -57,7 +58,7 @@ public class BlockBigDripleafStem extends Block implements IGrowable {
         }
     }
 
-    @javax.annotation.Nullable
+    @Nullable
     @Override
     public AxisAlignedBB getCollisionBoundingBox(IBlockState blockState, IBlockAccess worldIn, BlockPos pos) {
         return NULL_AABB;
@@ -86,7 +87,7 @@ public class BlockBigDripleafStem extends Block implements IGrowable {
         Block downBlock = downState.getBlock();
 
         boolean canStayDown = downBlock == this || downState.isSideSolid(worldIn, pos.down(), EnumFacing.UP) || downBlock == Blocks.DIRT || downBlock == Blocks.GRASS || downBlock == Blocks.CLAY || downBlock == Blocks.FARMLAND;
-        boolean canStayUp = upBlock == this || (RegistryHandler.big_dripleaf != null && upBlock == RegistryHandler.big_dripleaf);
+        boolean canStayUp = upBlock == this || (PlantRegistry.big_dripleaf != null && upBlock == PlantRegistry.big_dripleaf);
 
         return canStayDown && canStayUp;
     }
@@ -100,12 +101,12 @@ public class BlockBigDripleafStem extends Block implements IGrowable {
 
     @Override
     public Item getItemDropped(IBlockState state, Random rand, int fortune) {
-        return RegistryHandler.big_dripleaf == null ? Items.AIR : Item.getItemFromBlock(RegistryHandler.big_dripleaf);
+        return PlantRegistry.big_dripleaf == null ? Items.AIR : Item.getItemFromBlock(PlantRegistry.big_dripleaf);
     }
 
     @Override
     public ItemStack getItem(World worldIn, BlockPos pos, IBlockState state) {
-        return new ItemStack(RegistryHandler.big_dripleaf);
+        return new ItemStack(PlantRegistry.big_dripleaf);
     }
 
     @Override
@@ -163,7 +164,7 @@ public class BlockBigDripleafStem extends Block implements IGrowable {
         for (int i = 0; i < 256; i++) {
             mpos.move(EnumFacing.UP);
             Block block = worldIn.getBlockState(mpos).getBlock();
-            if (block == RegistryHandler.big_dripleaf) {
+            if (block == PlantRegistry.big_dripleaf) {
                 return mpos.toImmutable();
             }
             if (block != this) {

@@ -17,7 +17,6 @@ import net.minecraftforge.fml.relauncher.Side;
 
 import sayys.depthsupdate.Reference;
 import sayys.depthsupdate.item.ItemSpyglass;
-import sayys.depthsupdate.registry.RegistryHandler;
 
 @Mod.EventBusSubscriber(value = Side.CLIENT, modid = Reference.MOD_ID)
 public class SpyglassClientHandler {
@@ -88,7 +87,6 @@ public class SpyglassClientHandler {
         bufferbuilder.pos((double)x, (double)y, -90.0D).tex(0.0D, 0.0D).endVertex();
         tessellator.draw();
 
-        Minecraft.getMinecraft().getTextureManager().bindTexture(Gui.OPTIONS_BACKGROUND);
         GlStateManager.disableTexture2D();
         GlStateManager.color(0, 0, 0, 1);
 

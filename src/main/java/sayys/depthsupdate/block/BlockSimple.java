@@ -10,7 +10,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.common.IPlantable;
 
-public class BlockSimple extends Block {
+import sayys.depthsupdate.registry.IHasModel;
+
+public class BlockSimple extends Block implements IHasModel {
     public BlockSimple(String name, Material material, float hardness, float resistance, SoundType soundType) {
         super(material);
 
