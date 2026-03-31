@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.Unique;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.util.BlockUtils;
+import sayys.depthsupdate.world.generation.AquiferGenerator;
 import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
 @Mixin(ChunkGeneratorOverworld.class)
@@ -26,6 +27,9 @@ public abstract class MixinChunkGeneratorOverworld {
 
     @Unique
     private sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator depthsupdate$noiseCaveGenerator;
+
+    @Unique
+    private AquiferGenerator depthsupdate$aquiferGenerator;
 
     @Inject(method = "setBlocksInChunk", at = @At("RETURN"))
     private void depthsupdate$fillDeepUnderground(int x, int z, ChunkPrimer primer, CallbackInfo ci) {
@@ -70,5 +74,13 @@ public abstract class MixinChunkGeneratorOverworld {
         }
 
         this.depthsupdate$noiseCaveGenerator.generate(x, z, primer);
+
+        if (DepthsUpdateConfig.aquifers.enableAquifers) {
+            if (this.depthsupdate$aquiferGenerator == null) {
+                this.depthsupdate$aquiferGenerator = new AquiferGenerator(this.world);
+            }
+
+            this.depthsupdate$aquiferGenerator.generate(x, z, primer);
+        }
     }
 }

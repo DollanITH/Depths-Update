@@ -9,6 +9,7 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemSlab;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.common.registry.GameRegistry;
@@ -88,7 +89,7 @@ public class DeepslateRegistry {
         .skipDefaultModel(cobbled_deepslate_wall, polished_deepslate_wall, deepslate_brick_wall, deepslate_tile_wall, deepslate_slab_half, deepslate_slab_double)
         .withItemBlockProvider((block, event) -> {
             if (block == deepslate_slab_half) {
-                event.getRegistry().register(new net.minecraft.item.ItemSlab(deepslate_slab_half, deepslate_slab_half, deepslate_slab_double).setRegistryName(block.getRegistryName()));
+                event.getRegistry().register(new ItemSlab(deepslate_slab_half, deepslate_slab_half, deepslate_slab_double).setRegistryName(block.getRegistryName()));
             } else if (block != deepslate_slab_double) {
                 event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));
             }
@@ -112,18 +113,18 @@ public class DeepslateRegistry {
             GameRegistry.addSmelting(deepslate_bricks, new ItemStack(cracked_deepslate_bricks), 0.1f);
             GameRegistry.addSmelting(deepslate_tiles, new ItemStack(cracked_deepslate_tiles), 0.1f);
 
-            GameRegistry.addSmelting(raw_iron, new ItemStack(net.minecraft.init.Items.IRON_INGOT), 0.7f);
-            GameRegistry.addSmelting(raw_gold, new ItemStack(net.minecraft.init.Items.GOLD_INGOT), 1.0f);
+            GameRegistry.addSmelting(raw_iron, new ItemStack(Items.IRON_INGOT), 0.7f);
+            GameRegistry.addSmelting(raw_gold, new ItemStack(Items.GOLD_INGOT), 1.0f);
             GameRegistry.addSmelting(raw_copper, new ItemStack(copper_ingot), 0.7f);
 
             GameRegistry.addSmelting(copper_ore, new ItemStack(copper_ingot), 0.7f);
-            GameRegistry.addSmelting(deepslate_coal_ore, new ItemStack(net.minecraft.init.Items.COAL), 0.1f);
-            GameRegistry.addSmelting(deepslate_iron_ore, new ItemStack(net.minecraft.init.Items.IRON_INGOT), 0.7f);
-            GameRegistry.addSmelting(deepslate_gold_ore, new ItemStack(net.minecraft.init.Items.GOLD_INGOT), 1.0f);
-            GameRegistry.addSmelting(deepslate_redstone_ore, new ItemStack(net.minecraft.init.Items.REDSTONE), 0.7f);
-            GameRegistry.addSmelting(deepslate_lapis_ore, new ItemStack(net.minecraft.init.Items.DYE, 1, 4), 0.2f);
-            GameRegistry.addSmelting(deepslate_diamond_ore, new ItemStack(net.minecraft.init.Items.DIAMOND), 1.0f);
-            GameRegistry.addSmelting(deepslate_emerald_ore, new ItemStack(net.minecraft.init.Items.EMERALD), 1.0f);
+            GameRegistry.addSmelting(deepslate_coal_ore, new ItemStack(Items.COAL), 0.1f);
+            GameRegistry.addSmelting(deepslate_iron_ore, new ItemStack(Items.IRON_INGOT), 0.7f);
+            GameRegistry.addSmelting(deepslate_gold_ore, new ItemStack(Items.GOLD_INGOT), 1.0f);
+            GameRegistry.addSmelting(deepslate_redstone_ore, new ItemStack(Items.REDSTONE), 0.7f);
+            GameRegistry.addSmelting(deepslate_lapis_ore, new ItemStack(Items.DYE, 1, 4), 0.2f);
+            GameRegistry.addSmelting(deepslate_diamond_ore, new ItemStack(Items.DIAMOND), 1.0f);
+            GameRegistry.addSmelting(deepslate_emerald_ore, new ItemStack(Items.EMERALD), 1.0f);
             GameRegistry.addSmelting(deepslate_copper_ore, new ItemStack(copper_ingot), 0.7f);
 
             copper_ore.setHarvestLevel("pickaxe", 1);

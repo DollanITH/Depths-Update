@@ -187,4 +187,33 @@ public class DepthsUpdateConfig {
         @Config.RangeInt(min = 0, max = 100)
         public int dripstoneCavesHeightVariation = 8;
     }
+
+    @Config.Name("Amethyst Geodes")
+    public static final AmethystGeodes amethystGeodes = new AmethystGeodes();
+
+    public static class AmethystGeodes {
+        @Config.Name("Enable Amethyst Geodes")
+        @Config.RequiresMcRestart
+        public boolean enableAmethystGeodes = true;
+
+        @Config.Name("Geode Rarity")
+        @Config.Comment("The rarity of Amethyst Geodes. Higher numbers mean rarer geodes. (1 in X chance per chunk)")
+        @Config.RangeInt(min = 1, max = 1000)
+        public int geodeRarity = 24;
+
+        @Config.Name("Minimum Height")
+        public int geodeMinY = -58;
+
+        @Config.Name("Maximum Height")
+        public int geodeMaxY = 30;
+    }
+
+    @Config.Name("Aquifers")
+    public static final Aquifers aquifers = new Aquifers();
+
+    public static class Aquifers {
+        @Config.Name("Enable Aquifers")
+        @Config.RequiresMcRestart
+        public boolean enableAquifers = false;
+    }
 }

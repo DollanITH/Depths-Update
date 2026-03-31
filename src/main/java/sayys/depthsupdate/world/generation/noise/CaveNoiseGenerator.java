@@ -69,7 +69,7 @@ public class CaveNoiseGenerator {
 
                     if (context.shouldCarve) {
                         if (isSafeToCarve(primer, x, y, z)) {
-                            if (y < DimensionHelper.EXTENDED_LAVA_LEVEL) {
+                            if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
                                 primer.setBlockState(x, y, z, lava);
                             } else {
                                 primer.setBlockState(x, y, z, air);

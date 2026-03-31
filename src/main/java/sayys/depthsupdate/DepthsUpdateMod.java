@@ -13,6 +13,7 @@ import org.jspecify.annotations.NonNull;
 
 import sayys.depthsupdate.client.AssetHandler;
 import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.world.generation.AmethystGeodeGenerator;
 import sayys.depthsupdate.world.generation.DripstoneCavesGenerator;
 import sayys.depthsupdate.world.generation.LushCavesGenerator;
 
@@ -42,5 +43,6 @@ public class DepthsUpdateMod {
 
         LushCavesGenerator.register();
         DripstoneCavesGenerator.register();
+        AmethystGeodeGenerator.register();
     }
 }
