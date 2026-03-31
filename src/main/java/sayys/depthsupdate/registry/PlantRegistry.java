@@ -50,12 +50,19 @@ public class PlantRegistry {
             .add(spore_blossom);
 
     public static final RegistrationFeature DRIPLEAF_FEATURE = new RegistrationFeature(() -> DepthsUpdateConfig.REGISTRY.enableDripleafFamily)
-            .add(small_dripleaf, big_dripleaf, big_dripleaf_stem);
+            .add(small_dripleaf, big_dripleaf, big_dripleaf_stem)
+            .skipDefaultModel(big_dripleaf_stem)
+            .withItemBlockProvider((block, event) -> {
+                if (block != big_dripleaf_stem) {
+                    event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));
+                }
+            });
 
     public static final RegistrationFeature VINE_FEATURE = new RegistrationFeature(() -> DepthsUpdateConfig.REGISTRY.enableCaveVinesAndBerries)
             .add(cave_vines, cave_vines_plant, glow_berries)
+            .skipDefaultModel(cave_vines_plant, cave_vines)
             .withItemBlockProvider((block, event) -> {
-                if (block != cave_vines_plant) {
+                if (block != cave_vines_plant && block != cave_vines) {
                     event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));
                 }
             });

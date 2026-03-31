@@ -2,13 +2,16 @@ package sayys.depthsupdate.registry;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -22,6 +25,7 @@ import net.minecraftforge.registries.IForgeRegistryEntry;
 public class RegistrationFeature {
     private final BooleanSupplier configToggle;
     private final List<IForgeRegistryEntry<?>> entries = new ArrayList<>();
+    private final Set<IForgeRegistryEntry<?>> skippedModels = new HashSet<>();
 
     private BiConsumer<Block, RegistryEvent.Register<Item>> itemBlockProvider = (block, event) -> {
         event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));
@@ -41,6 +45,11 @@ public class RegistrationFeature {
 
     public RegistrationFeature withItemBlockProvider(BiConsumer<Block, RegistryEvent.Register<Item>> provider) {
         this.itemBlockProvider = provider;
+        return this;
+    }
+
+    public RegistrationFeature skipDefaultModel(IForgeRegistryEntry<?>... entriesToSkip) {
+        Collections.addAll(this.skippedModels, entriesToSkip);
         return this;
     }
 
@@ -94,12 +103,24 @@ public class RegistrationFeature {
         if (!isEnabled()) return;
 
         for (IForgeRegistryEntry<?> entry : entries) {
+            if (skippedModels.contains(entry)) continue;
+
             if (entry instanceof IHasModel) {
-                ((IHasModel) entry).registerModel(entry instanceof Item ? (Item) entry : Item.getItemFromBlock((Block) entry));
+                Item item = entry instanceof Item ? (Item) entry : Item.getItemFromBlock((Block) entry);
+                if (item != Items.AIR) {
+                    ((IHasModel) entry).registerModel(item);
+                }
             } else if (entry instanceof Block) {
-                registerDefaultBlockModel((Block) entry);
+                Block block = (Block) entry;
+                Item item = Item.getItemFromBlock(block);
+                if (item != Items.AIR) {
+                    registerDefaultBlockModel(block);
+                }
             } else if (entry instanceof Item) {
-                registerDefaultItemModel((Item) entry);
+                Item item = (Item) entry;
+                if (item.getRegistryName() != null) {
+                    registerDefaultItemModel(item);
+                }
             }
         }
 

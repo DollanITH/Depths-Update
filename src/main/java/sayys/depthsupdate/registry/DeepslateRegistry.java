@@ -85,6 +85,7 @@ public class DeepslateRegistry {
              copper_ore, deepslate_coal_ore, deepslate_iron_ore, deepslate_gold_ore, deepslate_redstone_ore, deepslate_lapis_ore, deepslate_diamond_ore, deepslate_emerald_ore, deepslate_copper_ore,
              raw_iron, raw_gold, raw_copper, copper_ingot,
              raw_iron_block, raw_gold_block, raw_copper_block)
+        .skipDefaultModel(cobbled_deepslate_wall, polished_deepslate_wall, deepslate_brick_wall, deepslate_tile_wall, deepslate_slab_half, deepslate_slab_double)
         .withItemBlockProvider((block, event) -> {
             if (block == deepslate_slab_half) {
                 event.getRegistry().register(new net.minecraft.item.ItemSlab(deepslate_slab_half, deepslate_slab_half, deepslate_slab_double).setRegistryName(block.getRegistryName()));
@@ -103,6 +104,8 @@ public class DeepslateRegistry {
             }
         })
         .withInit(() -> {
+            OreDictionary.registerOre("stoneDeepslate", deepslate);
+            OreDictionary.registerOre("cobblestoneDeepslate", cobbled_deepslate);
             OreDictionary.registerOre("cobblestone", cobbled_deepslate);
 
             GameRegistry.addSmelting(cobbled_deepslate, new ItemStack(deepslate), 0.1f);

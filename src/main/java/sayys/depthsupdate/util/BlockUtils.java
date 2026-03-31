@@ -3,6 +3,10 @@ package sayys.depthsupdate.util;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraftforge.oredict.OreDictionary;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.registry.DeepslateRegistry;
@@ -87,11 +91,33 @@ public class BlockUtils {
         return deepVariant != null ? deepVariant.getDefaultState() : oreState;
     }
 
+    private static int deepslateOreID = -1;
+
     public static boolean isDeepslate(IBlockState state) {
         if (state == null) return false;
 
         Block block = state.getBlock();
 
-        return block == DeepslateRegistry.deepslate || (block.getRegistryName() != null && block.getRegistryName().toString().equals(DepthsUpdateConfig.deepslateBlock));
+        if (block == DeepslateRegistry.deepslate) return true;
+
+        if (block.getRegistryName() != null && block.getRegistryName().toString().equals(DepthsUpdateConfig.deepslateBlock)) return true;
+
+        if (deepslateOreID == -1) {
+            deepslateOreID = OreDictionary.getOreID("stoneDeepslate");
+        }
+
+        if (deepslateOreID != -1) {
+            Item item = Item.getItemFromBlock(block);
+
+            if (item != Items.AIR) {
+                int[] ids = OreDictionary.getOreIDs(new ItemStack(item));
+
+                for (int id : ids) {
+                    if (id == deepslateOreID) return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
