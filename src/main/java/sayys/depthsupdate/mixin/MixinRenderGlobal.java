@@ -29,9 +29,13 @@ public class MixinRenderGlobal {
     private BlockPos depthsupdate$redirectRenderChunkPosForEntityArray(RenderChunk renderChunk) {
         BlockPos pos = renderChunk.getPosition();
         World world = Minecraft.getMinecraft().world;
+
         if (DimensionHelper.isExtendedDimension(world)) {
-            return new BlockPos(pos.getX(), pos.getY() + 64, pos.getZ());
+            int storageIndex = DimensionHelper.toStorageIndex(world, pos.getY());
+
+            return new BlockPos(pos.getX(), storageIndex * 16, pos.getZ());
         }
+
         return pos;
     }
 
@@ -39,6 +43,7 @@ public class MixinRenderGlobal {
     private void depthsupdate$getRenderChunkOffset(BlockPos playerPos, RenderChunk renderChunkBase, EnumFacing facing,
             CallbackInfoReturnable<RenderChunk> cir) {
         World world = Minecraft.getMinecraft().world;
+
         if (!DimensionHelper.isExtendedDimension(world)) {
             return;
         }
