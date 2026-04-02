@@ -6,6 +6,7 @@
 !**/src/**/build/
 
 .agents/
+.claude/
 docs/
 run/
 sources/
