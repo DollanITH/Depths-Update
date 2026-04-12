@@ -15,7 +15,8 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(ViewFrustum.class)
 public abstract class MixinViewFrustum {
@@ -35,33 +36,38 @@ public abstract class MixinViewFrustum {
     protected abstract int getBaseCoordinate(int p_178157_1_, int p_178157_2_, int p_178157_3_);
 
     @Unique
-    private boolean depthsupdate$isExtended() {
+    private HeightContext depthsupdate$ctx() {
         World world = Minecraft.getMinecraft().world;
-        return DimensionHelper.isExtendedDimension(world);
+        return HeightManager.get(world);
     }
 
     @ModifyConstant(method = "setCountChunksXYZ", constant = @Constant(intValue = 16))
     private int depthsupdate$modifyCountChunksY(int original) {
-        return depthsupdate$isExtended() ? DimensionHelper.EXTENDED_STORAGE_SECTIONS : original;
+        HeightContext ctx = depthsupdate$ctx();
+        return ctx.isExtended() ? ctx.totalStorageSections() : original;
     }
 
     @ModifyArg(method = "updateChunkPositions", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/chunk/RenderChunk;setPosition(III)V"), index = 1)
     private int depthsupdate$modifyChunkYPosition(int y) {
-        return depthsupdate$isExtended() ? y - 64 : y;
+        HeightContext ctx = depthsupdate$ctx();
+        return ctx.isExtended() ? y + ctx.minY() : y;
     }
 
     @ModifyVariable(method = "markBlocksForUpdate", at = @At("HEAD"), argsOnly = true, ordinal = 1)
     private int depthsupdate$modifyMinY(int minY) {
-        return depthsupdate$isExtended() ? minY + 64 : minY;
+        HeightContext ctx = depthsupdate$ctx();
+        return ctx.isExtended() ? minY - ctx.minY() : minY;
     }
 
     @ModifyVariable(method = "markBlocksForUpdate", at = @At("HEAD"), argsOnly = true, ordinal = 4)
     private int depthsupdate$modifyMaxY(int maxY) {
-        return depthsupdate$isExtended() ? maxY + 64 : maxY;
+        HeightContext ctx = depthsupdate$ctx();
+        return ctx.isExtended() ? maxY - ctx.minY() : maxY;
     }
 
     @ModifyVariable(method = "getRenderChunk", at = @At("HEAD"), argsOnly = true)
     private BlockPos depthsupdate$modifyPos(@NonNull BlockPos pos) {
-        return depthsupdate$isExtended() ? pos.up(64) : pos;
+        HeightContext ctx = depthsupdate$ctx();
+        return ctx.isExtended() ? pos.up(-ctx.minY()) : pos;
     }
 }

@@ -31,7 +31,8 @@
     "MixinMapGenRavine",
     "MixinBlockMatcher",
     "MixinIFluidStatePrimer",
-    "MixinWorldEntitySpawner"
+    "MixinWorldEntitySpawner",
+    "MixinEntity"
   ],
   "server": [],
   "setSourceFile": true,

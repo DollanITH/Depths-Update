@@ -8,14 +8,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.taumc.celeritas.impl.world.cloned.ClonedChunkSection;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = ClonedChunkSection.class, remap = false)
 public class MixinClonedChunkSection {
     @Inject(method = "getChunkSection", at = @At("HEAD"), cancellable = true)
     private static void depthsupdate$fixGetChunkSection(Chunk chunk, int y, CallbackInfoReturnable<ExtendedBlockStorage> cir) {
         var storageArray = chunk.getBlockStorageArray();
-        int storageIndex = DimensionHelper.toStorageIndex(true, y << 4);
+        int storageIndex = HeightManager.getMaxContext().toStorageIndex(y << 4);
 
         if (storageIndex >= 0 && storageIndex < storageArray.length) {
             cir.setReturnValue(storageArray[storageIndex]);

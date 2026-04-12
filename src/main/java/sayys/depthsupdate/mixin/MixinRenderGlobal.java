@@ -15,7 +15,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(RenderGlobal.class)
 public class MixinRenderGlobal {
@@ -25,14 +26,22 @@ public class MixinRenderGlobal {
     @Shadow
     private ViewFrustum viewFrustum;
 
+    /**
+     * Fixes entity rendering in extended-height worlds.
+     *
+     * Vanilla's renderEntities() does: chunk.getEntityLists()[pos.getY() / 16]
+     * In extended worlds, render chunks can have negative Y (e.g. -64), which gives
+     * negative array indices and a crash. We transform Y so that dividing by 16 gives
+     * the correct storage index from HeightContext.toStorageIndex().
+     */
     @Redirect(method = "renderEntities", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/chunk/RenderChunk;getPosition()Lnet/minecraft/util/math/BlockPos;"))
     private BlockPos depthsupdate$redirectRenderChunkPosForEntityArray(RenderChunk renderChunk) {
         BlockPos pos = renderChunk.getPosition();
         World world = Minecraft.getMinecraft().world;
 
-        if (DimensionHelper.isExtendedDimension(world)) {
-            int storageIndex = DimensionHelper.toStorageIndex(world, pos.getY());
-
+        if (HeightManager.isExtended(world)) {
+            HeightContext ctx = HeightManager.get(world);
+            int storageIndex = ctx.toStorageIndex(pos.getY());
             return new BlockPos(pos.getX(), storageIndex * 16, pos.getZ());
         }
 
@@ -44,16 +53,17 @@ public class MixinRenderGlobal {
             CallbackInfoReturnable<RenderChunk> cir) {
         World world = Minecraft.getMinecraft().world;
 
-        if (!DimensionHelper.isExtendedDimension(world)) {
+        if (!HeightManager.isExtended(world)) {
             return;
         }
 
+        HeightContext ctx = HeightManager.get(world);
         BlockPos blockpos = renderChunkBase.getBlockPosOffset16(facing);
 
         if (MathHelper.abs(playerPos.getX() - blockpos.getX()) > this.renderDistanceChunks * 16) {
             cir.setReturnValue(null);
-        } else if (blockpos.getY() < DimensionHelper.EXTENDED_MIN_Y
-                || blockpos.getY() >= DimensionHelper.EXTENDED_TOTAL_HEIGHT) {
+        } else if (blockpos.getY() < ctx.minY()
+                || blockpos.getY() >= ctx.maxY()) {
             cir.setReturnValue(null);
         } else {
             cir.setReturnValue(MathHelper

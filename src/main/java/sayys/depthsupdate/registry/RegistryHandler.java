@@ -7,6 +7,8 @@ import net.minecraft.item.Item;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -47,8 +49,8 @@ public class RegistryHandler {
         FEATURES.forEach(f -> f.registerSounds(event));
     }
 
-    @SubscribeEvent
-    public static void registerModels(ModelRegistryEvent event) {
+    @SideOnly(Side.CLIENT)
+    public static void registerModelsCommon(ModelRegistryEvent event) {
         FEATURES.forEach(f -> f.registerModels(event));
     }
 

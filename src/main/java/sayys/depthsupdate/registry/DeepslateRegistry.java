@@ -4,7 +4,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
-import net.minecraft.client.renderer.block.statemap.StateMap;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
@@ -141,10 +140,7 @@ public class DeepslateRegistry {
         });
 
     public static final RegistrationFeature DRIPSTONE_FEATURE = new RegistrationFeature(() -> DepthsUpdateConfig.REGISTRY.enableDripstoneBlock)
-            .add(dripstone_block, pointed_dripstone)
-            .withModelOverrides(event -> {
-                ModelLoader.setCustomStateMapper(pointed_dripstone, (new StateMap.Builder()).ignore(BlockPointedDripstone.WATERLOGGED).build());
-            });
+            .add(dripstone_block, pointed_dripstone);
 
     public static final RegistrationFeature CALCITE_FEATURE = new RegistrationFeature(() -> DepthsUpdateConfig.REGISTRY.enableCalcite).add(calcite);
     public static final RegistrationFeature TUFF_FEATURE = new RegistrationFeature(() -> DepthsUpdateConfig.REGISTRY.enableTuff).add(tuff);

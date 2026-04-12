@@ -9,6 +9,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
 import sayys.depthsupdate.world.generation.noise.sponge.module.source.Perlin;
 
@@ -31,15 +33,12 @@ public class AquiferGenerator {
     private static final int Y_RANGE = 9;
     private static final int Z_RANGE = 10;
 
-    // Y range where aquifers operate
-    private static final int AQUIFER_MIN_Y = -60;
-    private static final int AQUIFER_MAX_Y = 30;
-
-    // Lava rules
-    // Below this Y, aquifer bodies CAN randomly be lava
-    private static final int LAVA_POSSIBLE_Y = -10;
-    // Below this Y, aquifer bodies are ALWAYS lava
-    private static final int LAVA_ALWAYS_Y = -55;
+    // Default offsets for Y ranges (relative to world bounds)
+    private static final int DEFAULT_MIN_Y_OFFSET = 4;  // minY + 4
+    private static final int DEFAULT_MAX_Y = 30;
+    // Lava thresholds as fraction of negative Y range
+    private static final double LAVA_POSSIBLE_FRACTION = 0.15; // ~15% up from minY
+    private static final double LAVA_ALWAYS_FRACTION = 0.9;    // ~90% down from 0
 
     // Similarity threshold for barriers
     private static final double SIMILARITY_THRESHOLD = 25.0;
@@ -54,11 +53,17 @@ public class AquiferGenerator {
     private final double offsetX;
     private final double offsetZ;
 
-    // Cached fluid status grid
-    private final long[] locationCache;
-    private final int[] fluidLevelCache;
-    private final boolean[] fluidTypeCache; // true = lava, false = water
-    private final boolean[] cacheValid;
+    // Per-world Y bounds (computed from HeightContext)
+    private final int aquiferMinY;
+    private final int aquiferMaxY;
+    private final int lavaPossibleY;
+    private final int lavaAlwaysY;
+
+    // Cached fluid status grid (dynamically sized per chunk)
+    private long[] locationCache;
+    private int[] fluidLevelCache;
+    private boolean[] fluidTypeCache; // true = lava, false = water
+    private boolean[] cacheValid;
 
     // Grid dimensions for current chunk
     private int minGridX, minGridY, minGridZ;
@@ -73,6 +78,15 @@ public class AquiferGenerator {
         this.offsetX = rand.nextDouble() * 100000.0;
         this.offsetZ = rand.nextDouble() * 100000.0;
 
+        // Compute Y bounds from world height config
+        HeightContext ctx = HeightManager.get(world);
+        this.aquiferMinY = ctx.minY() + DEFAULT_MIN_Y_OFFSET;
+        this.aquiferMaxY = Math.min(DEFAULT_MAX_Y, ctx.maxY() - 1);
+        // Lava thresholds scale with negative Y range
+        int negRange = 0 - ctx.minY(); // how many blocks below Y=0
+        this.lavaPossibleY = ctx.minY() + (int)(negRange * LAVA_POSSIBLE_FRACTION);
+        this.lavaAlwaysY = ctx.minY() + (int)(negRange * (1.0 - LAVA_ALWAYS_FRACTION));
+
         // Barrier noise - creates stone walls between aquifer bodies
         this.barrierNoise = createNoise((int) worldSeed + 10000, 2, 0.5, 1.0);
 
@@ -84,12 +98,6 @@ public class AquiferGenerator {
 
         // Lava noise - determines if a body is lava instead of water
         this.lavaNoise = createNoise((int) worldSeed + 10003, 1, 0.5, 1.0);
-
-        // Pre-allocate cache - will be sized per-chunk
-        this.locationCache = new long[512];
-        this.fluidLevelCache = new int[512];
-        this.fluidTypeCache = new boolean[512];
-        this.cacheValid = new boolean[512];
     }
 
     private static Perlin createNoise(int seed, int octaves, double persistence, double frequency) {
@@ -116,16 +124,24 @@ public class AquiferGenerator {
         int maxGridX = gridCoord(worldX + 15 + X_RANGE);
         this.gridSizeX = maxGridX - minGridX + 1;
 
-        this.minGridY = gridCoordY(AQUIFER_MIN_Y - Y_RANGE);
-        int maxGridY = gridCoordY(AQUIFER_MAX_Y + Y_RANGE);
+        this.minGridY = gridCoordY(aquiferMinY - Y_RANGE);
+        int maxGridY = gridCoordY(aquiferMaxY + Y_RANGE);
         this.gridSizeY = maxGridY - minGridY + 1;
 
         this.minGridZ = gridCoord(worldZ - Z_RANGE);
         int maxGridZ = gridCoord(worldZ + 15 + Z_RANGE);
         this.gridSizeZ = maxGridZ - minGridZ + 1;
 
-        // Clear cache
-        Arrays.fill(cacheValid, false);
+        // Allocate/resize cache based on actual grid dimensions
+        int cacheSize = gridSizeX * gridSizeY * gridSizeZ;
+        if (locationCache == null || locationCache.length < cacheSize) {
+            this.locationCache = new long[cacheSize];
+            this.fluidLevelCache = new int[cacheSize];
+            this.fluidTypeCache = new boolean[cacheSize];
+            this.cacheValid = new boolean[cacheSize];
+        } else {
+            Arrays.fill(cacheValid, 0, cacheSize, false);
+        }
 
         IBlockState water = Blocks.WATER.getDefaultState();
         IBlockState lava = Blocks.LAVA.getDefaultState();
@@ -146,13 +162,11 @@ public class AquiferGenerator {
             for (int lz = 0; lz < 16; lz++) {
                 int surfaceY = surfaceLevels[lx * 16 + lz];
 
-                for (int y = AQUIFER_MIN_Y; y <= Math.min(AQUIFER_MAX_Y, surfaceY - 4); y++) {
+                for (int y = aquiferMinY; y <= Math.min(aquiferMaxY, surfaceY - 4); y++) {
                     IBlockState current = primer.getBlockState(lx, y, lz);
 
                     // Only fill air blocks and do NOT fill bedrock-level
                     if (current.getBlock() != Blocks.AIR) continue;
-
-                    if (y <= -60) continue;
 
                     int posX = worldX + lx;
                     int posZ = worldZ + lz;
@@ -163,7 +177,7 @@ public class AquiferGenerator {
                     int anchorZ = gridCoord(posZ);
 
                     int dist1 = Integer.MAX_VALUE, dist2 = Integer.MAX_VALUE, dist3 = Integer.MAX_VALUE;
-                    int idx1 = 0, idx2 = 0, idx3 = 0;
+                    int idx1 = -1, idx2 = -1, idx3 = -1;
 
                     // Scan 2×3×2 neighborhood of grid cells
                     for (int gx = 0; gx <= 1; gx++) {
@@ -210,12 +224,15 @@ public class AquiferGenerator {
                         }
                     }
 
+                    // No valid grid cells found — skip this block
+                    if (idx1 < 0) continue;
+
                     // Get fluid status of the closest aquifer body
                     int fluidLevel1 = fluidLevelCache[idx1];
                     boolean isLava1 = fluidTypeCache[idx1];
 
                     // If the closest aquifer isn't flooded, skip
-                    if (fluidLevel1 <= AQUIFER_MIN_Y - 10) continue;
+                    if (fluidLevel1 <= aquiferMinY - 10) continue;
 
                     // Check if this block is below the fluid surface
                     if (y >= fluidLevel1) continue;
@@ -338,7 +355,7 @@ public class AquiferGenerator {
         int fluidLevel;
 
         if (isFullyFlooded > 0.0) {
-            fluidLevel = Math.min(centerY + Y_SPACING, AQUIFER_MAX_Y);
+            fluidLevel = Math.min(centerY + Y_SPACING, aquiferMaxY);
         } else if (isPartiallyFlooded > 0.0) {
             fluidLevel = computeRandomizedFluidLevel(centerX, centerY, centerZ, surfaceY);
         } else {
@@ -348,9 +365,9 @@ public class AquiferGenerator {
         // Determine fluid type (water or lava)
         boolean isLava;
 
-        if (centerY <= LAVA_ALWAYS_Y) {
+        if (centerY <= lavaAlwaysY) {
             isLava = true;
-        } else if (centerY <= LAVA_POSSIBLE_Y && fluidLevel > Integer.MIN_VALUE) {
+        } else if (centerY <= lavaPossibleY && fluidLevel > Integer.MIN_VALUE) {
             double lavaScale = 0.008;
             double lavaVal = lavaNoise.getValue(
                     centerX * lavaScale,
@@ -395,7 +412,8 @@ public class AquiferGenerator {
      */
     private static int estimateSurfaceLevel(ChunkPrimer primer, int localX, int localZ) {
         // Scan down from a reasonable surface height
-        for (int y = 80; y >= -60; y--) {
+        int minY = HeightManager.getMaxContext().minY();
+        for (int y = 80; y >= minY; y--) {
             IBlockState state = primer.getBlockState(localX, y, localZ);
 
             if (state.getBlock() != Blocks.AIR && state.getBlock() != Blocks.WATER && state.getBlock() != Blocks.LAVA) {

@@ -3,16 +3,21 @@ package sayys.depthsupdate.mixin;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.ChunkGeneratorOverworld;
 import org.spongepowered.asm.mixin.Mixin;
+import net.minecraft.world.chunk.Chunk;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
 import sayys.depthsupdate.world.generation.AquiferGenerator;
 import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
@@ -33,6 +38,8 @@ public abstract class MixinChunkGeneratorOverworld {
 
     @Inject(method = "setBlocksInChunk", at = @At("RETURN"))
     private void depthsupdate$fillDeepUnderground(int x, int z, ChunkPrimer primer, CallbackInfo ci) {
+        HeightContext ctx = HeightManager.get(this.world);
+        int minY = ctx.minY();
         IBlockState stone = Blocks.STONE.getDefaultState();
         IBlockState deepslate = BlockUtils.getDeepslateBlockState();
 
@@ -42,8 +49,8 @@ public abstract class MixinChunkGeneratorOverworld {
 
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
-                for (int by = -64; by <= Math.max(0, maxY); by++) {
-                    if (by <= -64 + this.world.rand.nextInt(5)) {
+                for (int by = minY; by <= Math.max(0, maxY); by++) {
+                    if (by <= minY + this.world.rand.nextInt(5)) {
                         primer.setBlockState(bx, by, bz, Blocks.BEDROCK.getDefaultState());
                     } else if (by <= fullDeepslateY) {
                         primer.setBlockState(bx, by, bz, deepslate);

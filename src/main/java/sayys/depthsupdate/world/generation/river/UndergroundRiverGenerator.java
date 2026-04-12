@@ -6,6 +6,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.block.state.IBlockState;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.world.generation.noise.sponge.module.source.Perlin;
 import sayys.depthsupdate.world.generation.noise.sponge.module.source.RidgedMulti;
 
@@ -65,7 +67,9 @@ public class UndergroundRiverGenerator {
     }
 
     public void generate(int chunkX, int chunkZ, ChunkPrimer primer) {
-        int baseY = -30;
+        HeightContext heightCtx = HeightManager.get(world);
+        // Place rivers roughly 1/3 up from the bottom of the world
+        int baseY = heightCtx.minY() + (0 - heightCtx.minY()) / 3;
         int waterLevel = baseY - 3;
 
         for (int x = 0; x < 16; ++x) {
@@ -91,7 +95,7 @@ public class UndergroundRiverGenerator {
 
                     int startPointY = -height / 2;
                     for (int a = baseY - startPointY; a > baseY - height; --a) {
-                        if (a <= -63 || a >= 255)
+                        if (a < heightCtx.minY() || a >= heightCtx.maxY())
                             continue;
 
                         IBlockState current = primer.getBlockState(x, a, z);
@@ -111,14 +115,14 @@ public class UndergroundRiverGenerator {
                         int topShell = baseY - startPointY + 1;
                         int bottomShell = baseY - height;
 
-                        if (topShell < 255 && topShell > -64) {
+                        if (topShell < heightCtx.maxY() && topShell >= heightCtx.minY()) {
                             IBlockState shellState = primer.getBlockState(x, topShell, z);
 
                             if (shellState != AIR && shellState != WATER)
                                 primer.setBlockState(x, topShell, z, riverDebug);
                         }
 
-                        if (bottomShell < 255 && bottomShell > -64) {
+                        if (bottomShell < heightCtx.maxY() && bottomShell >= heightCtx.minY()) {
                             IBlockState shellState = primer.getBlockState(x, bottomShell, z);
 
                             if (shellState != AIR && shellState != WATER)

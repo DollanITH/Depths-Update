@@ -15,7 +15,11 @@ public class SpaghettiCaveGenerator implements ICaveGenerator {
     private final Perlin noiseA;
     private final Perlin noiseB;
 
-    public SpaghettiCaveGenerator(long seed) {
+    // spaghetti caves fade out near the top of the cave range
+    private final int fadeTopStart;
+    private final int fadeTopRange;
+
+    public SpaghettiCaveGenerator(long seed, int caveMaxY) {
         this.debugBlockBlockState = BlockUtils.getSpaghettiDebugBlockState();
 
         this.noiseA = new Perlin();
@@ -26,6 +30,10 @@ public class SpaghettiCaveGenerator implements ICaveGenerator {
 
         this.noiseB.setSeed((int) seed + 7331);
         this.noiseB.setOctaveCount(2);
+
+        // Fade out over the top ~1/3 of the cave range (from caveMaxY-10 to caveMaxY for default range)
+        this.fadeTopStart = caveMaxY - 10;
+        this.fadeTopRange = Math.max(1, 10);
     }
 
     @Override
@@ -50,8 +58,8 @@ public class SpaghettiCaveGenerator implements ICaveGenerator {
 
         double fade = 0.0;
 
-        if (context.y > 20) {
-            fade = ((double) (context.y - 20) / 10.0);
+        if (context.y > fadeTopStart) {
+            fade = ((double) (context.y - fadeTopStart) / fadeTopRange);
         }
 
         double value = noodleThickness + (fade * 0.5);

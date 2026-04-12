@@ -1,7 +1,6 @@
 package sayys.depthsupdate.mixin;
 
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.AnvilChunkLoader;
@@ -18,12 +17,13 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(AnvilChunkLoader.class)
 public abstract class MixinAnvilChunkLoader {
     @Unique
-    private static final ThreadLocal<Boolean> depthsupdate$isExtended = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<HeightContext> depthsupdate$ctx = ThreadLocal.withInitial(() -> HeightContext.VANILLA);
 
     @Unique
     private static final ThreadLocal<Integer> depthsupdate$nestingLevel = ThreadLocal.withInitial(() -> 0);
@@ -31,7 +31,7 @@ public abstract class MixinAnvilChunkLoader {
     @Inject(method = "readChunkFromNBT", at = @At("HEAD"))
     private void depthsupdate$startRead(World worldIn, NBTTagCompound compound, CallbackInfoReturnable<Chunk> cir) {
         if (depthsupdate$nestingLevel.get() == 0) {
-            depthsupdate$isExtended.set(DimensionHelper.isExtendedDimension(worldIn));
+            depthsupdate$ctx.set(HeightManager.get(worldIn));
         }
 
         depthsupdate$nestingLevel.set(depthsupdate$nestingLevel.get() + 1);
@@ -42,15 +42,16 @@ public abstract class MixinAnvilChunkLoader {
         depthsupdate$nestingLevel.set(depthsupdate$nestingLevel.get() - 1);
 
         if (depthsupdate$nestingLevel.get() <= 0) {
-            depthsupdate$isExtended.remove();
+            depthsupdate$ctx.remove();
             depthsupdate$nestingLevel.remove();
         }
     }
 
     @ModifyConstant(method = "readChunkFromNBT", constant = @Constant(intValue = 16))
     private int depthsupdate$modifyStorageArraysSize(int original) {
-        if (depthsupdate$isExtended.get()) {
-            return DimensionHelper.EXTENDED_STORAGE_SECTIONS;
+        HeightContext ctx = depthsupdate$ctx.get();
+        if (ctx.isExtended()) {
+            return ctx.totalStorageSections();
         }
 
         return original;
@@ -60,8 +61,9 @@ public abstract class MixinAnvilChunkLoader {
     private byte depthsupdate$offsetY(@NonNull NBTTagCompound compound, String key) {
         byte b = compound.getByte(key);
 
-        if ("Y".equals(key) && depthsupdate$isExtended.get() && (compound.hasKey("Blocks") || compound.hasKey("Palette"))) {
-            return (byte) DimensionHelper.toStorageIndex(true, b << 4);
+        HeightContext ctx = depthsupdate$ctx.get();
+        if ("Y".equals(key) && ctx.isExtended() && (compound.hasKey("Blocks") || compound.hasKey("Palette"))) {
+            return (byte) ctx.toStorageIndex(b << 4);
         }
 
         return b;
@@ -70,20 +72,17 @@ public abstract class MixinAnvilChunkLoader {
     @Contract("_, _ -> new")
     @Redirect(method = "readChunkFromNBT", at = @At(value = "NEW", target = "net/minecraft/world/chunk/storage/ExtendedBlockStorage"))
     private @NonNull ExtendedBlockStorage depthsupdate$fixConstructorY(int y, boolean storeSkylight) {
-        if (depthsupdate$isExtended.get()) {
-            return new ExtendedBlockStorage(DimensionHelper.fromStorageIndex(true, y >> 4) << 4, storeSkylight);
+        HeightContext ctx = depthsupdate$ctx.get();
+        if (ctx.isExtended()) {
+            return new ExtendedBlockStorage(ctx.fromStorageIndex(y >> 4) << 4, storeSkylight);
         }
 
         return new ExtendedBlockStorage(y, storeSkylight);
     }
 
-    /**
-     * When saving chunks in an extended dimension, add a marker tag so we know
-     * the Y values are already offset when reloading.
-     */
     @Inject(method = "writeChunkToNBT", at = @At("HEAD"))
     private void depthsupdate$markExtendedChunk(Chunk chunkIn, World worldIn, NBTTagCompound compound, CallbackInfo ci) {
-        if (DimensionHelper.isExtendedDimension(worldIn)) {
+        if (HeightManager.isExtended(worldIn)) {
             compound.setBoolean("DepthsUpdateExtended", true);
         }
     }

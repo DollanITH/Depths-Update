@@ -13,7 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.taumc.celeritas.impl.render.terrain.VintageRenderPassConfigurationBuilder;
 import org.taumc.celeritas.impl.render.terrain.VintageRenderSectionManager;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = VintageRenderSectionManager.class, remap = false)
 public class MixinVintageRenderSectionManager {
@@ -22,11 +23,12 @@ public class MixinVintageRenderSectionManager {
 
     /**
      * @author __sayys
-     * @reason Pass extended minSection (-4) for negative depth.
+     * @reason Pass extended minSection for negative depth.
      */
     @Overwrite
     public static VintageRenderSectionManager create(ChunkVertexType vertexType, WorldClient world, int renderDistance, CommandList commandList) {
-        int minSection = DimensionHelper.isExtendedDimension(world) ? -DimensionHelper.SECTION_OFFSET : 0;
+        HeightContext ctx = HeightManager.get(world);
+        int minSection = ctx.isExtended() ? ctx.minSection() : 0;
         return new VintageRenderSectionManager(VintageRenderPassConfigurationBuilder.build(vertexType), world, renderDistance, commandList, minSection, 16);
     }
 
@@ -40,8 +42,9 @@ public class MixinVintageRenderSectionManager {
             return;
         }
 
+        HeightContext ctx = HeightManager.get(this.world);
         var array = chunk.getBlockStorageArray();
-        int storageIndex = DimensionHelper.toStorageIndex(DimensionHelper.isExtendedDimension(this.world), y << 4);
+        int storageIndex = ctx.toStorageIndex(y << 4);
 
         if (storageIndex < 0 || storageIndex >= array.length) {
             cir.setReturnValue(true);

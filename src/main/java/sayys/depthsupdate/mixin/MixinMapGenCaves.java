@@ -16,8 +16,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
-import sayys.depthsupdate.util.DimensionHelper;
 
 @Mixin(MapGenCaves.class)
 public abstract class MixinMapGenCaves extends MapGenBase {
@@ -49,7 +50,7 @@ public abstract class MixinMapGenCaves extends MapGenBase {
         if (this.canReplaceBlock(state, up) || state.getBlock() == top.getBlock()
                 || state.getBlock() == filler.getBlock()
                 || state == deepslate || state.getBlock() == deepslate.getBlock()) {
-            if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
+            if (y - 1 < HeightManager.getLavaLevel(world)) {
                 data.setBlockState(x, y, z, Blocks.LAVA.getDefaultState());
             } else {
                 data.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
@@ -62,7 +63,7 @@ public abstract class MixinMapGenCaves extends MapGenBase {
     }
 
     /**
-     * Replaces addTunnel to expand cave generation bounds to Y=-64.
+     * Replaces addTunnel to expand cave generation bounds.
      */
     @Inject(method = "addTunnel", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$addTunnel(long p_180702_1_, int p_180702_3_, int p_180702_4_, ChunkPrimer p_180702_5_, double p_180702_6_, double p_180702_8_, double p_180702_10_, float p_180702_12_, float p_180702_13_, float p_180702_14_, int p_180702_15_, int p_180702_16_, double p_180702_17_, CallbackInfo ci) {
@@ -133,6 +134,10 @@ public abstract class MixinMapGenCaves extends MapGenBase {
 
                 if (p_180702_6_ >= d0 - 16.0D - d2 * 2.0D && p_180702_10_ >= d1 - 16.0D - d2 * 2.0D
                         && p_180702_6_ <= d0 + 16.0D + d2 * 2.0D && p_180702_10_ <= d1 + 16.0D + d2 * 2.0D) {
+                    HeightContext heightCtx = HeightManager.get(this.world);
+                    int worldMinY = heightCtx.minY();
+                    int worldMaxY = heightCtx.maxY();
+
                     int k2 = MathHelper.floor(p_180702_6_ - d2) - p_180702_3_ * 16 - 1;
                     int k = MathHelper.floor(p_180702_6_ + d2) - p_180702_3_ * 16 + 1;
                     int l2 = MathHelper.floor(p_180702_8_ - d3) - 1;
@@ -148,12 +153,12 @@ public abstract class MixinMapGenCaves extends MapGenBase {
                         k = 16;
                     }
 
-                    if (l2 < -63) {
-                        l2 = -63;
+                    if (l2 < worldMinY + 1) {
+                        l2 = worldMinY + 1;
                     }
 
-                    if (l > 315) {
-                        l = 315;
+                    if (l > worldMaxY - 5) {
+                        l = worldMaxY - 5;
                     }
 
                     if (i3 < 0) {
@@ -169,7 +174,7 @@ public abstract class MixinMapGenCaves extends MapGenBase {
                     for (int j1 = k2; !flag3 && j1 < k; ++j1) {
                         for (int k1 = i3; !flag3 && k1 < i1; ++k1) {
                             for (int l1 = l + 1; !flag3 && l1 >= l2 - 1; --l1) {
-                                if (l1 >= -64 && l1 < 320) {
+                                if (l1 >= worldMinY && l1 < worldMaxY) {
                                     if (isOceanBlock(p_180702_5_, j1, l1, k1, p_180702_3_, p_180702_4_)) {
                                         flag3 = true;
                                     }
@@ -233,10 +238,12 @@ public abstract class MixinMapGenCaves extends MapGenBase {
      * Replaces recursiveGenerate to extend tunnel length and Y range.
      */
     @Inject(method = "recursiveGenerate", at = @At("HEAD"), cancellable = true)
-    protected void depthsupdate$recursiveGenerate(World p_180701_1_, int p_180701_2_, int p_180701_3_,
-            int p_180701_4_,
-            int p_180701_5_, ChunkPrimer p_180701_6_, CallbackInfo ci) {
+    protected void depthsupdate$recursiveGenerate(World p_180701_1_, int p_180701_2_, int p_180701_3_, int p_180701_4_, int p_180701_5_, ChunkPrimer p_180701_6_, CallbackInfo ci) {
         ci.cancel();
+        HeightContext heightCtx = HeightManager.get(p_180701_1_);
+        int minY = heightCtx.minY();
+        int totalHeight = heightCtx.totalHeight();
+
         int i = this.rand.nextInt(this.rand.nextInt(this.rand.nextInt(15) + 1) + 1);
 
         if (this.rand.nextInt(7) != 0) {
@@ -246,8 +253,10 @@ public abstract class MixinMapGenCaves extends MapGenBase {
         for (int j = 0; j < i; ++j) {
             double d0 = (double) (p_180701_2_ * 16 + this.rand.nextInt(16));
 
-            double vanillaLikeY = this.rand.nextInt(192) + 8;
-            double d1 = (double) (this.rand.nextInt((int) vanillaLikeY) - 64);
+            // Scale Y range proportionally: vanilla uses rand(192)+8 over 256 height
+            int yRange = Math.max(8, (totalHeight * 192) / 256);
+            double vanillaLikeY = this.rand.nextInt(yRange) + 8;
+            double d1 = (double) (this.rand.nextInt((int) vanillaLikeY) + minY);
 
             double d2 = (double) (p_180701_3_ * 16 + this.rand.nextInt(16));
             int k = 1;

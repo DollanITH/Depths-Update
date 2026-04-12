@@ -11,6 +11,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
+
 @Mixin(value = ChunkRenderManager.class, remap = false)
 public class MixinNothiriumChunkRenderManager {
     @Shadow
@@ -48,7 +51,8 @@ public class MixinNothiriumChunkRenderManager {
         Minecraft mc = Minecraft.getMinecraft();
         int renderDistance = mc.gameSettings.renderDistanceChunks;
 
-        int maxSections = (mc.world != null && mc.world.provider.getDimension() == 0) ? 20 : 16;
+        HeightContext ctx = mc.world != null ? HeightManager.get(mc.world) : HeightContext.VANILLA;
+        int maxSections = ctx.totalStorageSections();
         int renderDistanceY = Math.min(renderDistance, (maxSections + 1) / 2);
 
         renderChunkProvider.init(renderDistance, renderDistanceY, renderDistance);

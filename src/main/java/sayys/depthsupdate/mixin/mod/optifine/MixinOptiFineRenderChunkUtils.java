@@ -8,6 +8,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 
+import sayys.depthsupdate.core.HeightManager;
+
 @Mixin(targets = "net.optifine.util.RenderChunkUtils", remap = false)
 public class MixinOptiFineRenderChunkUtils {
     @Unique
@@ -36,7 +38,7 @@ public class MixinOptiFineRenderChunkUtils {
 
     /**
      * @author sayys
-     * @reason Fix ArrayIndexOutOfBoundsException by correctly mapping negative Y coords to storage array indices.
+     * @reason Fix ArrayIndexOutOfBoundsException by correctly mapping Y coords to storage array indices.
      */
     @Overwrite
     public static int getCountBlocks(RenderChunk renderChunk) {
@@ -52,7 +54,7 @@ public class MixinOptiFineRenderChunkUtils {
             if (storages == null) return 0;
 
             int y = renderChunk.getPosition().getY();
-            int index = (y + 64) >> 4;
+            int index = HeightManager.getMaxContext().toStorageIndex(y);
 
             if (index >= 0 && index < storages.length) {
                 ExtendedBlockStorage ebs = storages[index];

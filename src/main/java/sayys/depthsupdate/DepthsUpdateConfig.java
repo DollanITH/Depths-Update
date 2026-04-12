@@ -1,10 +1,14 @@
 package sayys.depthsupdate;
 
+import com.cleanroommc.configanytime.ConfigAnytime;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import sayys.depthsupdate.core.HeightManager;
+import sayys.depthsupdate.util.BlockUtils;
 
 @Config(modid = Reference.MOD_ID)
 public class DepthsUpdateConfig {
@@ -14,7 +18,8 @@ public class DepthsUpdateConfig {
         public static void onConfigChanged(final ConfigChangedEvent.OnConfigChangedEvent event) {
             if (event.getModID().equals(Reference.MOD_ID)) {
                 ConfigManager.sync(Reference.MOD_ID, Config.Type.INSTANCE);
-                sayys.depthsupdate.util.BlockUtils.clearCaches();
+                BlockUtils.clearCaches();
+                HeightManager.initialize();
             }
         }
     }
@@ -37,6 +42,54 @@ public class DepthsUpdateConfig {
     @Config.Name("Debug")
     @Config.Comment("Debug Settings")
     public static final Debug DEBUG = new Debug();
+
+    @Config.Name("Height Extension")
+    @Config.Comment("Settings for extended world height.")
+    public static final HeightExtension heightExtension = new HeightExtension();
+
+    public static class HeightExtension {
+        @Config.Name("Global Minimum Y")
+        @Config.Comment("The minimum Y coordinate for extended dimensions. Must be a multiple of 16.")
+        @Config.RangeInt(min = -2048, max = 0)
+        public int globalMinY = -64;
+
+        @Config.Name("Global Maximum Y")
+        @Config.Comment("The maximum Y coordinate for extended dimensions. Must be a multiple of 16.")
+        @Config.RangeInt(min = 256, max = 2048)
+        public int globalMaxY = 320;
+
+        @Config.Name("Extended Dimensions")
+        @Config.Comment("Dimension IDs to apply height extension to. Default: [0] (Overworld only).")
+        @Config.RequiresMcRestart
+        public int[] extendedDimensions = {0};
+
+        @Config.Name("Dimension Overrides")
+        @Config.Comment({
+                "Per-dimension height overrides.",
+                "Format: \"dimId:minY:maxY\" or \"dimId:minY:maxY:lavaLevel:voidDamageLevel\"",
+                "Example: \"-1:-64:256\" extends the Nether to -64..256.",
+                "Example: \"0:-64:320:-54:-128\" sets custom lava/void levels for the Overworld.",
+                "Overrides globalMinY/globalMaxY (and optionally lava/void levels) for the specified dimension."
+        })
+        @Config.RequiresMcRestart
+        public String[] dimensionOverrides = {};
+
+        @Config.Name("Sea Level")
+        @Config.Comment("The sea level Y coordinate. Used by terrain generation and API queries.")
+        public int seaLevel = 63;
+
+        @Config.Name("Lava Level")
+        @Config.Comment("The Y level at which underground air is replaced with lava.")
+        public int lavaLevel = -54;
+
+        @Config.Name("Void Damage Level")
+        @Config.Comment("The Y level at which players start taking void damage.")
+        public int voidDamageLevel = -128;
+
+        @Config.Name("Convert Old Worlds")
+        @Config.Comment("When loading chunks from a non-extended world, fill below Y=0 with stone.")
+        public boolean convertOldWorlds = true;
+    }
 
     @Config.Name("Generate Underground Rivers")
     public static boolean generateUndergroundRivers = false;
@@ -215,5 +268,9 @@ public class DepthsUpdateConfig {
         @Config.Name("Enable Aquifers")
         @Config.RequiresMcRestart
         public boolean enableAquifers = false;
+    }
+
+    static {
+        ConfigAnytime.register(DepthsUpdateConfig.class);
     }
 }

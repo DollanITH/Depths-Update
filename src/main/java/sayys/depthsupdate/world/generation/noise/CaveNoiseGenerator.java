@@ -3,24 +3,31 @@ package sayys.depthsupdate.world.generation.noise;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 import org.jspecify.annotations.NonNull;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
-import sayys.depthsupdate.util.DimensionHelper;
 
 public class CaveNoiseGenerator {
-    private static final int CAVE_MAX_Y = 30;
-    private static final int CAVE_MIN_Y = -60;
+    /** Default upper Y bound for cave generation (relative to sea level). */
+    private static final int DEFAULT_CAVE_MAX_Y = 30;
+    /** Default lower Y bound — offset from minY. Vanilla: minY(-64) + 4 = -60. */
+    private static final int DEFAULT_MIN_Y_OFFSET = 4;
 
     private final List<ICaveGenerator> generators = new ArrayList<>();
 
     private final double offsetX;
     private final double offsetY;
     private final double offsetZ;
+
+    private final int caveMinY;
+    private final int caveMaxY;
 
     public CaveNoiseGenerator(@NonNull World world) {
         long seed = world.getSeed();
@@ -30,8 +37,12 @@ public class CaveNoiseGenerator {
         this.offsetY = rand.nextDouble() * 100000.0;
         this.offsetZ = rand.nextDouble() * 100000.0;
 
-        this.generators.add(new CheeseCaveGenerator(seed));
-        this.generators.add(new SpaghettiCaveGenerator(seed));
+        HeightContext ctx = HeightManager.get(world);
+        this.caveMinY = ctx.minY() + DEFAULT_MIN_Y_OFFSET;
+        this.caveMaxY = Math.min(DEFAULT_CAVE_MAX_Y, ctx.maxY() - 1);
+
+        this.generators.add(new CheeseCaveGenerator(seed, caveMinY, caveMaxY));
+        this.generators.add(new SpaghettiCaveGenerator(seed, caveMaxY));
     }
 
     public void generate(int chunkX, int chunkZ, ChunkPrimer primer) {
@@ -50,7 +61,7 @@ public class CaveNoiseGenerator {
                 double realX = worldX + x + this.offsetX;
                 double realZ = worldZ + z + this.offsetZ;
 
-                for (int y = CAVE_MIN_Y; y <= CAVE_MAX_Y; y++) {
+                for (int y = caveMinY; y <= caveMaxY; y++) {
                     IBlockState currentState = primer.getBlockState(x, y, z);
                     boolean isCarvable = (currentState == stone || currentState == deepslate);
 
@@ -69,7 +80,7 @@ public class CaveNoiseGenerator {
 
                     if (context.shouldCarve) {
                         if (isSafeToCarve(primer, x, y, z)) {
-                            if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
+                            if (y - 1 < HeightManager.getMaxContext().lavaLevel()) {
                                 primer.setBlockState(x, y, z, lava);
                             } else {
                                 primer.setBlockState(x, y, z, air);
@@ -91,7 +102,8 @@ public class CaveNoiseGenerator {
                     int ny = y + dy;
                     int nz = z + dz;
 
-                    if (nx >= 0 && nx < 16 && ny >= -64 && ny < 256 && nz >= 0 && nz < 16) {
+                    HeightContext ctx = HeightManager.getMaxContext();
+                    if (nx >= 0 && nx < 16 && ny >= ctx.minY() && ny < ctx.maxY() && nz >= 0 && nz < 16) {
                         if (primer.getBlockState(nx, ny, nz).getBlock() == Blocks.WATER) {
                             return false;
                         }
@@ -99,7 +111,7 @@ public class CaveNoiseGenerator {
                 }
             }
         }
-        
+
         return true;
     }
 }

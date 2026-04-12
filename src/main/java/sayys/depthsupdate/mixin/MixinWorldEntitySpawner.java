@@ -9,18 +9,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(WorldEntitySpawner.class)
 public class MixinWorldEntitySpawner {
-    /**
-     * Replace the random spawn position method to handle negative Y top segments.
-     */
     @Inject(method = "getRandomChunkPosition", at = @At("HEAD"), cancellable = true)
     private static void depthsupdate$fixGetRandomChunkPosition(World worldIn, int x, int z, CallbackInfoReturnable<BlockPos> cir) {
-        if (DimensionHelper.isExtendedDimension(worldIn)) {
+        if (HeightManager.isExtended(worldIn)) {
             Chunk chunk = worldIn.getChunk(x, z);
-            int minY = DimensionHelper.getMinY(worldIn);
+            int minY = HeightManager.getMinY(worldIn);
             int topY = chunk.getTopFilledSegment() + 16;
 
             int range = topY - minY;

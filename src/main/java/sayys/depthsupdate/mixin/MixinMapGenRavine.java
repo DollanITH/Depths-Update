@@ -1,6 +1,7 @@
 package sayys.depthsupdate.mixin;
 
 import java.util.Random;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -16,8 +17,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
-import sayys.depthsupdate.util.DimensionHelper;
 
 @Mixin(MapGenRavine.class)
 public abstract class MixinMapGenRavine extends MapGenBase {
@@ -56,7 +58,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
         if (state.getBlock() == Blocks.STONE || state.getBlock() == top.getBlock()
                 || state.getBlock() == filler.getBlock()
                 || state == deepslate || state.getBlock() == deepslate.getBlock()) {
-            if (y - 1 < DimensionHelper.EXTENDED_LAVA_LEVEL) {
+            if (y - 1 < HeightManager.getLavaLevel(this.world)) {
                 data.setBlockState(x, y, z, Blocks.LAVA.getDefaultState());
             } else {
                 data.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
@@ -69,7 +71,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
     }
 
     /**
-     * Replaces addTunnel to expand Ravine loops down to Y=-63 bounds.
+     * Replaces addTunnel to expand Ravine loops down.
      */
     @Inject(method = "addTunnel", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$addTunnel(long p_180707_1_, int p_180707_3_, int p_180707_4_, ChunkPrimer p_180707_5_, double p_180707_6_, double p_180707_8_, double p_180707_10_, float p_180707_12_, float p_180707_13_, float p_180707_14_, int p_180707_15_, int p_180707_16_, double p_180707_17_, CallbackInfo ci) {
@@ -94,7 +96,9 @@ public abstract class MixinMapGenRavine extends MapGenBase {
 
         float f2 = 1.0F;
 
-        for (int j = 0; j < 320; ++j) {
+        HeightContext heightCtx = HeightManager.get(this.world);
+        int rsSize = heightCtx.maxY() - heightCtx.minY();
+        for (int j = 0; j < rsSize; ++j) {
             if (j == 0 || random.nextInt(3) == 0) {
                 f2 = 1.0F + random.nextFloat() * random.nextFloat();
             }
@@ -134,6 +138,9 @@ public abstract class MixinMapGenRavine extends MapGenBase {
 
                 if (p_180707_6_ >= d0 - 16.0D - d9 * 2.0D && p_180707_10_ >= d1 - 16.0D - d9 * 2.0D
                         && p_180707_6_ <= d0 + 16.0D + d9 * 2.0D && p_180707_10_ <= d1 + 16.0D + d9 * 2.0D) {
+                    int worldMinY = heightCtx.minY();
+                    int worldMaxY = heightCtx.maxY();
+
                     int k2 = MathHelper.floor(p_180707_6_ - d9) - p_180707_3_ * 16 - 1;
                     int k = MathHelper.floor(p_180707_6_ + d9) - p_180707_3_ * 16 + 1;
                     int l2 = MathHelper.floor(p_180707_8_ - d2) - 1;
@@ -149,12 +156,12 @@ public abstract class MixinMapGenRavine extends MapGenBase {
                         k = 16;
                     }
 
-                    if (l2 < -63) {
-                        l2 = -63;
+                    if (l2 < worldMinY + 1) {
+                        l2 = worldMinY + 1;
                     }
 
-                    if (l > 315) {
-                        l = 315;
+                    if (l > worldMaxY - 5) {
+                        l = worldMaxY - 5;
                     }
 
                     if (i3 < 0) {
@@ -170,7 +177,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
                     for (int j1 = k2; !flag2 && j1 < k; ++j1) {
                         for (int k1 = i3; !flag2 && k1 < i1; ++k1) {
                             for (int l1 = l + 1; !flag2 && l1 >= l2 - 1; --l1) {
-                                if (l1 >= -64 && l1 < 320) {
+                                if (l1 >= worldMinY && l1 < worldMaxY) {
                                     if (isOceanBlock(p_180707_5_, j1, l1, k1, p_180707_3_, p_180707_4_)) {
                                         flag2 = true;
                                     }
@@ -195,7 +202,8 @@ public abstract class MixinMapGenRavine extends MapGenBase {
                                     for (int j2 = l; j2 > l2; --j2) {
                                         double d8 = ((double) (j2 - 1) + 0.5D - p_180707_8_) / d2;
 
-                                        if ((d10 * d10 + d7 * d7) * (double) this.rs[j2 + 63] + d8 * d8 / 6.0D < 1.0D) {
+                                        int rsIndex = j2 - worldMinY;
+                                        if (rsIndex >= 0 && rsIndex < this.rs.length && (d10 * d10 + d7 * d7) * (double) this.rs[rsIndex] + d8 * d8 / 6.0D < 1.0D) {
                                             if (isTopBlock(p_180707_5_, j3, j2, i2, p_180707_3_, p_180707_4_)) {
                                                 flag = true;
                                             }
@@ -224,11 +232,18 @@ public abstract class MixinMapGenRavine extends MapGenBase {
             int p_180701_4_,
             int p_180701_5_, ChunkPrimer p_180701_6_, CallbackInfo ci) {
         ci.cancel();
+        HeightContext rHeightCtx = HeightManager.get(p_180701_1_);
+        int rMinY = rHeightCtx.minY();
+        int rTotalHeight = rHeightCtx.totalHeight();
+
         if (this.rand.nextInt(50) == 0) {
             double d0 = (double) (p_180701_2_ * 16 + this.rand.nextInt(16));
 
-            double vanillaLikeY = this.rand.nextInt(112) + 8;
-            double d1 = (double) (this.rand.nextInt((int) vanillaLikeY) - 44);
+            // Scale Y range proportionally: vanilla uses rand(112)+8 over 256 height
+            int yRange = Math.max(8, (rTotalHeight * 112) / 256);
+            int yOffset = rMinY + (rTotalHeight * 20) / 256;
+            double vanillaLikeY = this.rand.nextInt(yRange) + 8;
+            double d1 = (double) (this.rand.nextInt((int) vanillaLikeY) + yOffset);
 
             double d2 = (double) (p_180701_3_ * 16 + this.rand.nextInt(16));
 

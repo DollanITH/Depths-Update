@@ -7,14 +7,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.taumc.celeritas.impl.render.terrain.CeleritasWorldRenderer;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = CeleritasWorldRenderer.class, remap = false)
 public class MixinCeleritasWorldRenderer {
     @Inject(method = "getMinimumBuildHeight", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$fixMinBuildHeight(CallbackInfoReturnable<Integer> cir) {
-        if (DimensionHelper.isExtendedDimension(Minecraft.getMinecraft().world)) {
-            cir.setReturnValue(DimensionHelper.EXTENDED_MIN_Y);
+        if (HeightManager.isExtended(Minecraft.getMinecraft().world)) {
+            cir.setReturnValue(HeightManager.getMinY(Minecraft.getMinecraft().world));
         }
     }
 }

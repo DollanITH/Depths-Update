@@ -20,7 +20,13 @@ public class CheeseCaveGenerator implements ICaveGenerator {
     private final Perlin noise;
     private final Perlin warpNoise;
 
-    public CheeseCaveGenerator(long seed) {
+    // Fade bounds — caves fade out near top and bottom of their Y range
+    private final int fadeTopStart;    // Y above which caves start fading out upward
+    private final int fadeTopRange;    // blocks over which the upper fade occurs
+    private final int fadeBottomStart; // Y below which caves start fading out downward
+    private final int fadeBottomRange; // blocks over which the lower fade occurs
+
+    public CheeseCaveGenerator(long seed, int caveMinY, int caveMaxY) {
         this.debugBlockBlockState = BlockUtils.getCheeseDebugBlockState();
 
         this.noise = new Perlin();
@@ -33,6 +39,13 @@ public class CheeseCaveGenerator implements ICaveGenerator {
         this.warpNoise.setSeed((int) seed + 666);
         this.warpNoise.setOctaveCount(1);
         this.warpNoise.setFrequency(1.0);
+
+        // Fade: top 2/9 of range fades out upward, bottom 1/9 fades out downward
+        int totalRange = caveMaxY - caveMinY;
+        this.fadeTopStart = caveMaxY - (totalRange * 2 / 9);
+        this.fadeTopRange = Math.max(1, caveMaxY - fadeTopStart);
+        this.fadeBottomStart = caveMinY + (totalRange / 9);
+        this.fadeBottomRange = Math.max(1, fadeBottomStart - caveMinY);
     }
 
     @Override
@@ -70,10 +83,10 @@ public class CheeseCaveGenerator implements ICaveGenerator {
 
         double fade = 0.0;
 
-        if (context.y > 10) {
-            fade = ((double) (context.y - 10) / 20.0);
-        } else if (context.y < -50) {
-            fade = ((double) (-50 - context.y) / 10.0);
+        if (context.y > fadeTopStart) {
+            fade = ((double) (context.y - fadeTopStart) / fadeTopRange);
+        } else if (context.y < fadeBottomStart) {
+            fade = ((double) (fadeBottomStart - context.y) / fadeBottomRange);
         }
 
         double density = val - fade;

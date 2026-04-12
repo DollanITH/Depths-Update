@@ -22,7 +22,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(PlayerChunkMapEntry.class)
 public abstract class MixinPlayerChunkMapEntry {
@@ -61,18 +62,23 @@ public abstract class MixinPlayerChunkMapEntry {
     protected abstract void sendBlockEntity(@Nullable TileEntity p_187273_1_);
 
     @Unique
+    private HeightContext depthsupdate$ctx() {
+        return this.chunk != null ? HeightManager.get(this.chunk.getWorld()) : HeightContext.VANILLA;
+    }
+
+    @Unique
     private boolean depthsupdate$isExtended() {
-        return this.chunk != null && DimensionHelper.isExtendedDimension(this.chunk.getWorld());
+        return this.chunk != null && HeightManager.isExtended(this.chunk.getWorld());
     }
 
     @ModifyConstant(method = "sendToPlayers", constant = @Constant(intValue = 65535))
     private int depthsupdate$modifySendToPlayersMask(int original) {
-        return depthsupdate$isExtended() ? 1048575 : original;
+        return depthsupdate$isExtended() ? depthsupdate$ctx().fullChunkSectionMask() : original;
     }
 
     @ModifyConstant(method = "sendToPlayer", constant = @Constant(intValue = 65535))
     private int depthsupdate$modifySendToPlayerMask(int original) {
-        return depthsupdate$isExtended() ? 1048575 : original;
+        return depthsupdate$isExtended() ? depthsupdate$ctx().fullChunkSectionMask() : original;
     }
 
     /**
@@ -89,18 +95,19 @@ public abstract class MixinPlayerChunkMapEntry {
             }
 
             int sectionY;
-            if (depthsupdate$isExtended()) {
-                sectionY = DimensionHelper.toStorageIndex(this.chunk.getWorld(), y);
+            HeightContext ctx = depthsupdate$ctx();
+            if (ctx.isExtended()) {
+                sectionY = ctx.toStorageIndex(y);
                 if (sectionY < 0)
                     sectionY = 0;
-                if (sectionY > DimensionHelper.EXTENDED_STORAGE_SECTIONS - 1)
-                    sectionY = DimensionHelper.EXTENDED_STORAGE_SECTIONS - 1;
+                if (sectionY > ctx.totalStorageSections() - 1)
+                    sectionY = ctx.totalStorageSections() - 1;
             } else {
                 sectionY = y >> 4;
                 if (sectionY < 0)
                     sectionY = 0;
-                if (sectionY > DimensionHelper.VANILLA_STORAGE_SECTIONS - 1)
-                    sectionY = DimensionHelper.VANILLA_STORAGE_SECTIONS - 1;
+                if (sectionY > 15)
+                    sectionY = 15;
             }
             this.changedSectionFilter |= 1 << sectionY;
 

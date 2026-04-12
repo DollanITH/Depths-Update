@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(ChunkCache.class)
 public abstract class MixinChunkCache {
@@ -36,11 +36,11 @@ public abstract class MixinChunkCache {
 
     @Inject(method = "getBlockState", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getBlockState(@NonNull BlockPos pos, CallbackInfoReturnable<IBlockState> cir) {
-        if (!DimensionHelper.isExtendedDimension(this.world)) {
+        if (!HeightManager.isExtended(this.world)) {
             return;
         }
 
-        if (pos.getY() >= DimensionHelper.EXTENDED_MIN_Y && pos.getY() < 0) {
+        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -60,11 +60,11 @@ public abstract class MixinChunkCache {
 
     @Inject(method = "getLightFor", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getLightFor(EnumSkyBlock type, @NonNull BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        if (!DimensionHelper.isExtendedDimension(this.world)) {
+        if (!HeightManager.isExtended(this.world)) {
             return;
         }
 
-        if (pos.getY() >= DimensionHelper.EXTENDED_MIN_Y && pos.getY() < 0) {
+        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -78,11 +78,11 @@ public abstract class MixinChunkCache {
 
     @Inject(method = "getLightForExt", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getLightForExt(EnumSkyBlock type, @NonNull BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        if (!DimensionHelper.isExtendedDimension(this.world)) {
+        if (!HeightManager.isExtended(this.world)) {
             return;
         }
 
-        if (pos.getY() >= DimensionHelper.EXTENDED_MIN_Y && pos.getY() < 0) {
+        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -96,11 +96,11 @@ public abstract class MixinChunkCache {
 
     @Inject(method = "isSideSolid", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$isSideSolid(@NonNull BlockPos pos, EnumFacing side, boolean _default, CallbackInfoReturnable<Boolean> cir) {
-        if (!DimensionHelper.isExtendedDimension(this.world)) {
+        if (!HeightManager.isExtended(this.world)) {
             return;
         }
 
-        if (pos.getY() >= DimensionHelper.EXTENDED_MIN_Y && pos.getY() < 0) {
+        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
             int x = (pos.getX() >> 4) - this.chunkX;
             int z = (pos.getZ() >> 4) - this.chunkZ;
 

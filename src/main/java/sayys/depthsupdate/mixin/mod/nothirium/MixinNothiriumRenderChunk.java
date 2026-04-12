@@ -5,6 +5,9 @@ import meldexun.nothirium.renderer.chunk.AbstractRenderChunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
+
 @Mixin(value = RenderChunk.class, remap = false)
 public abstract class MixinNothiriumRenderChunk extends AbstractRenderChunk {
     protected MixinNothiriumRenderChunk(int sectionX, int sectionY, int sectionZ) {
@@ -13,11 +16,12 @@ public abstract class MixinNothiriumRenderChunk extends AbstractRenderChunk {
 
     /**
      * @author __sayys
-     * @reason Remove the hardcoded 0-15 dirty marking culling.
+     * @reason Remove the hardcoded 0-15 dirty marking culling, use configurable bounds.
      */
     @Overwrite
     public void markDirty() {
-        if (this.getSectionY() < -4 || this.getSectionY() >= 16) {
+        HeightContext ctx = HeightManager.getMaxContext();
+        if (this.getSectionY() < ctx.minSection() || this.getSectionY() > ctx.maxSection()) {
             this.getVisibility().setAllVisible();
 
             return;

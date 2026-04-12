@@ -7,17 +7,19 @@ import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = WorldUtil.class, remap = false)
 public class MixinNothiriumWorldUtil {
     /**
      * @author __sayys
-     * @reason Support negative section coordinates.
+     * @reason Support negative and upper section coordinates.
      */
     @Overwrite
     public static ExtendedBlockStorage getSection(World world, int sectionX, int sectionY, int sectionZ) {
-        if (sectionY < -4 || sectionY >= 16) {
+        HeightContext ctx = HeightManager.get(world);
+        if (sectionY < ctx.minSection() || sectionY > ctx.maxSection()) {
             return null;
         }
 
@@ -27,7 +29,7 @@ public class MixinNothiriumWorldUtil {
             return null;
         }
 
-        int storageIndex = DimensionHelper.toStorageIndex(DimensionHelper.isExtendedDimension(world), sectionY << 4);
+        int storageIndex = ctx.toStorageIndex(sectionY << 4);
 
         ExtendedBlockStorage[] storageArray = chunk.getBlockStorageArray();
 

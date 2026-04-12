@@ -4,6 +4,8 @@ import meldexun.nothirium.api.renderer.chunk.IRenderChunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 
+import sayys.depthsupdate.core.HeightManager;
+
 @Mixin(targets = "meldexun.nothirium.util.Direction$2", remap = false)
 public class MixinNothiriumDirectionUp {
     /**
@@ -12,7 +14,7 @@ public class MixinNothiriumDirectionUp {
      */
     @Overwrite
     public boolean isFaceCulled(IRenderChunk renderChunk, double cameraX, double cameraY, double cameraZ) {
-        if (renderChunk.getSectionY() < -4)
+        if (renderChunk.getSectionY() < HeightManager.getMaxContext().minSection())
             return true;
 
         return cameraY < renderChunk.getY() + 16;

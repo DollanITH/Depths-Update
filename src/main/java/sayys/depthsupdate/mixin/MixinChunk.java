@@ -31,7 +31,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(Chunk.class)
 public abstract class MixinChunk {
@@ -104,43 +105,50 @@ public abstract class MixinChunk {
     private static final ExtendedBlockStorage NULL_BLOCK_STORAGE = null;
 
     /**
-     * ThreadLocal to pass dimension info into @ModifyConstant during construction.
+     * ThreadLocal to pass HeightContext into @ModifyConstant during construction.
      * Required because @Inject at HEAD of &lt;init&gt; must be static (pre-super).
      */
     @Unique
-    private static final ThreadLocal<Boolean> depthsupdate$extendedInit = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<HeightContext> depthsupdate$initContext = ThreadLocal.withInitial(() -> HeightContext.VANILLA);
+
+    /**
+     * Reentrant guard for setBlockState to prevent StackOverflowError.
+     * When placing liquid blocks at negative Y, onBlockAdded() triggers
+     * checkForMixedStateLiquids() which recursively calls setBlockState,
+     * causing infinite recursion. This guard skips onBlockAdded during
+     * recursive calls.
+     */
+    @Unique
+    private static final ThreadLocal<Integer> depthsupdate$setBlockDepth = ThreadLocal.withInitial(() -> 0);
+
+    @Unique
+    private HeightContext depthsupdate$ctx() {
+        return HeightManager.get(this.world);
+    }
 
     @Unique
     private boolean depthsupdate$isExtended() {
-        return DimensionHelper.isExtendedDimension(this.world);
-    }
-
-    @Unique
-    private int depthsupdate$sectionOffset() {
-        return depthsupdate$isExtended() ? DimensionHelper.SECTION_OFFSET : 0;
-    }
-
-    @Unique
-    private int depthsupdate$minY() {
-        return depthsupdate$isExtended() ? DimensionHelper.EXTENDED_MIN_Y : DimensionHelper.VANILLA_MIN_Y;
+        return HeightManager.isExtended(this.world);
     }
 
     @Inject(method = "<init>(Lnet/minecraft/world/World;II)V", at = @At("HEAD"))
     private static void depthsupdate$captureWorldForInit(World worldIn, int x, int z, CallbackInfo ci) {
-        depthsupdate$extendedInit.set(DimensionHelper.isExtendedDimension(worldIn));
+        depthsupdate$initContext.set(HeightManager.get(worldIn));
     }
 
     @ModifyConstant(method = "<init>(Lnet/minecraft/world/World;II)V", constant = @Constant(intValue = 16))
     private int depthsupdate$modifyStorageArraysSize(int original) {
-        return depthsupdate$extendedInit.get() ? DimensionHelper.EXTENDED_STORAGE_SECTIONS : original;
+        HeightContext ctx = depthsupdate$initContext.get();
+        return ctx.isExtended() ? ctx.totalStorageSections() : original;
     }
 
     @Inject(method = "<init>(Lnet/minecraft/world/World;II)V", at = @At("RETURN"))
     private void depthsupdate$onChunkInitDefault(World worldIn, int x, int z, CallbackInfo ci) {
-        depthsupdate$extendedInit.remove();
-        if (DimensionHelper.isExtendedDimension(worldIn)) {
+        depthsupdate$initContext.remove();
+        HeightContext ctx = HeightManager.get(worldIn);
+        if (ctx.isExtended()) {
             for (int i = 0; i < this.heightMap.length; ++i) {
-                this.heightMap[i] = DimensionHelper.EXTENDED_MIN_Y;
+                this.heightMap[i] = ctx.minY();
             }
         }
     }
@@ -151,16 +159,18 @@ public abstract class MixinChunk {
             return;
         }
 
-        if (startY < DimensionHelper.EXTENDED_MIN_Y) {
-            startY = DimensionHelper.EXTENDED_MIN_Y;
+        HeightContext ctx = depthsupdate$ctx();
+
+        if (startY < ctx.minY()) {
+            startY = ctx.minY();
         }
 
-        if (endY >= DimensionHelper.EXTENDED_TOTAL_HEIGHT) {
-            endY = DimensionHelper.EXTENDED_TOTAL_HEIGHT - 1;
+        if (endY >= ctx.maxY()) {
+            endY = ctx.maxY() - 1;
         }
 
         for (int i = startY; i <= endY; i += 16) {
-            int chunkY = DimensionHelper.toStorageIndex(this.world, i);
+            int chunkY = ctx.toStorageIndex(i);
 
             if (chunkY >= 0 && chunkY < this.storageArrays.length) {
                 ExtendedBlockStorage extendedblockstorage = this.storageArrays[chunkY];
@@ -185,8 +195,8 @@ public abstract class MixinChunk {
         int i = this.getTopFilledSegment();
         boolean flag = false;
         boolean flag1 = false;
-        int minY = depthsupdate$minY();
-        net.minecraft.util.math.BlockPos.MutableBlockPos blockpos$mutableblockpos = new net.minecraft.util.math.BlockPos.MutableBlockPos(
+        int minY = depthsupdate$ctx().minY();
+        BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos(
                 (this.x << 4) + p_150811_1_, 0,
                 (this.z << 4) + p_150811_2_);
 
@@ -225,6 +235,8 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
+
         if (this.world.getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
             IBlockState iblockstate = null;
 
@@ -238,9 +250,9 @@ public abstract class MixinChunk {
 
             cir.setReturnValue(iblockstate == null ? Blocks.AIR.getDefaultState() : iblockstate);
         } else {
-            int chunkY = DimensionHelper.toStorageIndex(this.world, y);
+            int chunkY = ctx.toStorageIndex(y);
 
-            if (y >= DimensionHelper.EXTENDED_MIN_Y && chunkY < this.storageArrays.length) {
+            if (y >= ctx.minY() && chunkY >= 0 && chunkY < this.storageArrays.length) {
                 ExtendedBlockStorage extendedblockstorage = this.storageArrays[chunkY];
 
                 if (extendedblockstorage != NULL_BLOCK_STORAGE) {
@@ -259,6 +271,8 @@ public abstract class MixinChunk {
         if (!depthsupdate$isExtended()) {
             return;
         }
+
+        HeightContext ctx = depthsupdate$ctx();
 
         int i = pos.getX() & 15;
         int j = pos.getY();
@@ -282,7 +296,7 @@ public abstract class MixinChunk {
             Block block = state.getBlock();
             Block block1 = iblockstate.getBlock();
             int k1 = iblockstate.getLightOpacity(this.world, pos);
-            int chunkY = DimensionHelper.toStorageIndex(this.world, j);
+            int chunkY = ctx.toStorageIndex(j);
 
             if (chunkY < 0 || chunkY >= this.storageArrays.length) {
                 cir.setReturnValue(null);
@@ -345,7 +359,15 @@ public abstract class MixinChunk {
 
                 if (!this.world.isRemote && block1 != block
                         && (!this.world.captureBlockSnapshots || block.hasTileEntity(state))) {
-                    block.onBlockAdded(this.world, pos, state);
+                    int depth = depthsupdate$setBlockDepth.get();
+                    if (depth < 16) {
+                        depthsupdate$setBlockDepth.set(depth + 1);
+                        try {
+                            block.onBlockAdded(this.world, pos, state);
+                        } finally {
+                            depthsupdate$setBlockDepth.set(depth);
+                        }
+                    }
                 }
 
                 if (block.hasTileEntity(state)) {
@@ -374,10 +396,11 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         int i = pos.getX() & 15;
         int j = pos.getY();
         int k = pos.getZ() & 15;
-        int chunkY = DimensionHelper.toStorageIndex(this.world, j);
+        int chunkY = ctx.toStorageIndex(j);
 
         if (chunkY < 0 || chunkY >= this.storageArrays.length) {
             cir.setReturnValue(type.defaultLightValue);
@@ -405,10 +428,11 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         int i = pos.getX() & 15;
         int j = pos.getY();
         int k = pos.getZ() & 15;
-        int chunkY = DimensionHelper.toStorageIndex(this.world, j);
+        int chunkY = ctx.toStorageIndex(j);
 
         if (chunkY < 0 || chunkY >= this.storageArrays.length) {
             ci.cancel();
@@ -443,10 +467,11 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         int i = pos.getX() & 15;
         int j = pos.getY();
         int k = pos.getZ() & 15;
-        int chunkY = DimensionHelper.toStorageIndex(this.world, j);
+        int chunkY = ctx.toStorageIndex(j);
 
         if (chunkY < 0 || chunkY >= this.storageArrays.length) {
             cir.setReturnValue(this.world.provider.hasSkyLight() && amount < EnumSkyBlock.SKY.defaultLightValue
@@ -476,15 +501,15 @@ public abstract class MixinChunk {
     }
 
     /**
-     * Second inject on primer constructor — for extended dimensions, this completely rebuilds the chunk from the primer to handle the full -64 to 255 range.
-     * For non-extended dimensions, vanilla's constructor output is used as-is.
+     * Rebuild chunk from primer for extended dimensions, handling the full configured Y range.
      */
     @Inject(method = "<init>(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/ChunkPrimer;II)V", at = @At("RETURN"))
     private void depthsupdate$onChunkPrimerInit(@NonNull World worldIn, ChunkPrimer primer, int x, int z, CallbackInfo ci) {
-        if (!DimensionHelper.isExtendedDimension(worldIn)) {
+        if (!HeightManager.isExtended(worldIn)) {
             return;
         }
 
+        HeightContext ctx = HeightManager.get(worldIn);
         boolean flag = worldIn.provider.hasSkyLight();
 
         for (int i = 0; i < this.storageArrays.length; ++i) {
@@ -492,16 +517,16 @@ public abstract class MixinChunk {
         }
 
         for (int i = 0; i < this.heightMap.length; ++i) {
-            this.heightMap[i] = DimensionHelper.EXTENDED_MIN_Y;
+            this.heightMap[i] = ctx.minY();
         }
 
         for (int j = 0; j < 16; ++j) {
             for (int k = 0; k < 16; ++k) {
-                for (int l = DimensionHelper.EXTENDED_MIN_Y; l < DimensionHelper.EXTENDED_MAX_Y; ++l) {
+                for (int l = ctx.minY(); l < ctx.maxY(); ++l) {
                     IBlockState iblockstate = primer.getBlockState(j, l, k);
 
                     if (iblockstate.getMaterial() != net.minecraft.block.material.Material.AIR) {
-                        int chunkY = DimensionHelper.toStorageIndex(this.world, l);
+                        int chunkY = ctx.toStorageIndex(l);
 
                         if (this.storageArrays[chunkY] == null) {
                             this.storageArrays[chunkY] = new ExtendedBlockStorage(l >> 4 << 4, flag);
@@ -514,29 +539,44 @@ public abstract class MixinChunk {
         }
     }
 
+    /**
+     * Find the highest filled section, checking upper extension first, then vanilla, then negative.
+     */
     @Inject(method = "getTopFilledSegment", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getTopFilledSegment(CallbackInfoReturnable<Integer> cir) {
         if (!depthsupdate$isExtended()) {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
+
+        // Check upper extension sections first (highest Y, stored at indices 16..16+upperSections-1)
+        for (int i = 16 + ctx.upperSections() - 1; i >= 16; --i) {
+            if (i < this.storageArrays.length && this.storageArrays[i] != NULL_BLOCK_STORAGE) {
+                cir.setReturnValue(this.storageArrays[i].getYLocation());
+                return;
+            }
+        }
+
+        // Then vanilla sections (Y 240 down to Y 0)
         for (int i = 15; i >= 0; --i) {
             if (this.storageArrays[i] != NULL_BLOCK_STORAGE) {
                 cir.setReturnValue(this.storageArrays[i].getYLocation());
-
                 return;
             }
         }
 
-        for (int i = 16; i <= 19; ++i) {
-            if (this.storageArrays[i] != NULL_BLOCK_STORAGE) {
+        // Finally negative sections (closest to surface first)
+        int negStart = 16 + ctx.upperSections();
+        int negEnd = negStart + ctx.negativeSections();
+        for (int i = negStart; i < negEnd; ++i) {
+            if (i < this.storageArrays.length && this.storageArrays[i] != NULL_BLOCK_STORAGE) {
                 cir.setReturnValue(this.storageArrays[i].getYLocation());
-
                 return;
             }
         }
 
-        cir.setReturnValue(DimensionHelper.EXTENDED_MIN_Y);
+        cir.setReturnValue(ctx.minY());
     }
 
     @Inject(method = "generateHeightMap", at = @At("HEAD"), cancellable = true, require = 0)
@@ -546,9 +586,10 @@ public abstract class MixinChunk {
         }
 
         ci.cancel();
+        HeightContext ctx = depthsupdate$ctx();
         int i = this.getTopFilledSegment();
         this.heightMapMinimum = Integer.MAX_VALUE;
-        int minY = DimensionHelper.EXTENDED_MIN_Y;
+        int minY = ctx.minY();
 
         for (int j = 0; j < 16; ++j) {
             for (int k = 0; k < 16; ++k) {
@@ -580,10 +621,10 @@ public abstract class MixinChunk {
         }
 
         ci.cancel();
+        HeightContext ctx = depthsupdate$ctx();
         int i = this.getTopFilledSegment();
         this.heightMapMinimum = Integer.MAX_VALUE;
-        int minY = DimensionHelper.EXTENDED_MIN_Y;
-        int sectionOffset = DimensionHelper.SECTION_OFFSET;
+        int minY = ctx.minY();
 
         for (int j = 0; j < 16; ++j) {
             for (int k = 0; k < 16; ++k) {
@@ -607,7 +648,7 @@ public abstract class MixinChunk {
                     int k1 = 15;
                     int i1 = i + 16 - 1;
 
-            while (true) {
+                    while (true) {
                         int j1 = this.getBlockLightOpacity(j, i1, k);
 
                         if (j1 == 0 && k1 != 15) {
@@ -617,7 +658,7 @@ public abstract class MixinChunk {
                         k1 -= j1;
 
                         if (k1 > 0) {
-                            int chunkY = DimensionHelper.toStorageIndex(this.world, i1);
+                            int chunkY = ctx.toStorageIndex(i1);
 
                             if (chunkY >= 0 && chunkY < this.storageArrays.length) {
                                 ExtendedBlockStorage extendedblockstorage = this.storageArrays[chunkY];
@@ -651,10 +692,10 @@ public abstract class MixinChunk {
         }
 
         ci.cancel();
+        HeightContext ctx = depthsupdate$ctx();
         int i = this.heightMap[z << 4 | x];
         int j = i;
-        int minY = DimensionHelper.EXTENDED_MIN_Y;
-        int sectionOffset = DimensionHelper.SECTION_OFFSET;
+        int minY = ctx.minY();
 
         if (y > i) {
             j = y;
@@ -673,7 +714,7 @@ public abstract class MixinChunk {
             if (this.world.provider.hasSkyLight()) {
                 if (j < i) {
                     for (int j1 = j; j1 < i; ++j1) {
-                        int chunkY = DimensionHelper.toStorageIndex(this.world, j1);
+                        int chunkY = ctx.toStorageIndex(j1);
 
                         if (chunkY >= 0 && chunkY < this.storageArrays.length) {
                             ExtendedBlockStorage extendedblockstorage2 = this.storageArrays[chunkY];
@@ -686,7 +727,7 @@ public abstract class MixinChunk {
                     }
                 } else {
                     for (int i1 = i; i1 < j; ++i1) {
-                        int chunkY = DimensionHelper.toStorageIndex(this.world, i1);
+                        int chunkY = ctx.toStorageIndex(i1);
 
                         if (chunkY >= 0 && chunkY < this.storageArrays.length) {
                             ExtendedBlockStorage extendedblockstorage = this.storageArrays[chunkY];
@@ -715,7 +756,7 @@ public abstract class MixinChunk {
                         k1 = 0;
                     }
 
-                    int chunkY = DimensionHelper.toStorageIndex(this.world, j);
+                    int chunkY = ctx.toStorageIndex(j);
 
                     if (chunkY >= 0 && chunkY < this.storageArrays.length) {
                         ExtendedBlockStorage extendedblockstorage1 = this.storageArrays[chunkY];
@@ -758,6 +799,7 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         this.hasEntities = true;
         int i = MathHelper.floor(entityIn.posX / 16.0D);
         int j = MathHelper.floor(entityIn.posZ / 16.0D);
@@ -768,7 +810,7 @@ public abstract class MixinChunk {
             entityIn.setDead();
         }
 
-        int k = DimensionHelper.toStorageIndex(this.world, MathHelper.floor(entityIn.posY));
+        int k = ctx.toStorageIndex(MathHelper.floor(entityIn.posY));
 
         if (k < 0) {
             k = 0;
@@ -796,14 +838,15 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         int startY = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D);
         int endY = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D);
-        startY = MathHelper.clamp(startY, -4, 15);
-        endY = MathHelper.clamp(endY, -4, 15);
+        startY = MathHelper.clamp(startY, ctx.minSection(), ctx.maxSection());
+        endY = MathHelper.clamp(endY, ctx.minSection(), ctx.maxSection());
 
         for (int y = startY; y <= endY; ++y) {
-            int k = DimensionHelper.toStorageIndex(this.world, y << 4);
-            if (!this.entityLists[k].isEmpty()) {
+            int k = ctx.toStorageIndex(y << 4);
+            if (k >= 0 && k < this.entityLists.length && !this.entityLists[k].isEmpty()) {
                 for (Entity entity : this.entityLists[k]) {
                     if (entity.getEntityBoundingBox().intersects(aabb) && entity != entityIn) {
                         if (filter == null || filter.apply(entity)) {
@@ -834,16 +877,19 @@ public abstract class MixinChunk {
             return;
         }
 
+        HeightContext ctx = depthsupdate$ctx();
         int startY = MathHelper.floor((aabb.minY - World.MAX_ENTITY_RADIUS) / 16.0D);
         int endY = MathHelper.floor((aabb.maxY + World.MAX_ENTITY_RADIUS) / 16.0D);
-        startY = MathHelper.clamp(startY, -4, 15);
-        endY = MathHelper.clamp(endY, -4, 15);
+        startY = MathHelper.clamp(startY, ctx.minSection(), ctx.maxSection());
+        endY = MathHelper.clamp(endY, ctx.minSection(), ctx.maxSection());
 
         for (int y = startY; y <= endY; ++y) {
-            int k = DimensionHelper.toStorageIndex(this.world, y << 4);
-            for (T t : this.entityLists[k].getByClass(entityClass)) {
-                if (t.getEntityBoundingBox().intersects(aabb) && (filter == null || filter.apply(t))) {
-                    listToFill.add(t);
+            int k = ctx.toStorageIndex(y << 4);
+            if (k >= 0 && k < this.entityLists.length) {
+                for (T t : this.entityLists[k].getByClass(entityClass)) {
+                    if (t.getEntityBoundingBox().intersects(aabb) && (filter == null || filter.apply(t))) {
+                        listToFill.add(t);
+                    }
                 }
             }
         }

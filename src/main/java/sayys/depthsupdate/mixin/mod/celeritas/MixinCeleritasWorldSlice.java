@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.taumc.celeritas.impl.world.WorldSlice;
 
-import sayys.depthsupdate.util.DimensionHelper;
+import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = WorldSlice.class, remap = false)
 public class MixinCeleritasWorldSlice {
@@ -14,6 +14,6 @@ public class MixinCeleritasWorldSlice {
     private static int depthsupdate$remapSectionYForStorageAccess(SectionPos origin) {
         int sectionY = origin.y();
 
-        return DimensionHelper.toStorageIndex(true, sectionY << 4);
+        return HeightManager.getMaxContext().toStorageIndex(sectionY << 4);
     }
 }

@@ -1,6 +1,7 @@
 package sayys.depthsupdate.mixin.mod.optifine;
 
 import java.lang.reflect.Field;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ViewFrustum;
 import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.util.EnumFacing;
@@ -12,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.mixin.IMixinViewFrustum;
 
 @Mixin(ViewFrustum.class)
@@ -68,6 +71,7 @@ public abstract class MixinOptiFineViewFrustum {
 
         if (reflectionFailed) return;
 
+        HeightContext ctx = HeightManager.get(Minecraft.getMinecraft().world);
         ViewFrustum self = (ViewFrustum) (Object) this;
 
         for (RenderChunk renderChunk : this.renderChunks) {
@@ -84,7 +88,7 @@ public abstract class MixinOptiFineViewFrustum {
 
                     RenderChunk neighbour = null;
 
-                    if (y >= -64 && y < 320) {
+                    if (y >= ctx.minY() && y < ctx.maxY()) {
                         neighbour = ((IMixinViewFrustum) self).invokeGetRenderChunk(neighbourPos);
                     }
 
