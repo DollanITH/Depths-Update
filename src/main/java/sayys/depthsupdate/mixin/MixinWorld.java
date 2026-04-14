@@ -1,5 +1,6 @@
 package sayys.depthsupdate.mixin;
 
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumSkyBlock;
@@ -139,5 +140,33 @@ public abstract class MixinWorld {
                 cir.setReturnValue(chunk.getLightFor(type, pos));
             }
         }
+    }
+
+    /**
+     * Vanilla loops down to Y >= 0 which misses solid ground below Y=0 in extended worlds.
+     */
+    @Inject(method = "getTopSolidOrLiquidBlock", at = @At("HEAD"), cancellable = true)
+    private void depthsupdate$getTopSolidOrLiquidBlock(BlockPos pos, CallbackInfoReturnable<BlockPos> cir) {
+        World self = (World) (Object) this;
+
+        if (!HeightManager.isExtended(self)) {
+            return;
+        }
+
+        HeightContext ctx = HeightManager.get(self);
+        Chunk chunk = this.getChunk(pos);
+        BlockPos blockpos = new BlockPos(pos.getX(), chunk.getTopFilledSegment() + 16, pos.getZ());
+        BlockPos blockpos1;
+
+        for (; blockpos.getY() >= ctx.minY(); blockpos = blockpos1) {
+            blockpos1 = blockpos.down();
+            Material material = chunk.getBlockState(blockpos1).getMaterial();
+
+            if (material.blocksMovement() && material != Material.LEAVES) {
+                break;
+            }
+        }
+
+        cir.setReturnValue(blockpos);
     }
 }
