@@ -65,6 +65,11 @@ public abstract class MixinChunkGeneratorOverworld {
                     } else if (by < 0) {
                         primer.setBlockState(bx, by, bz, stone);
                     }
+
+                    // Replace vanilla bedrock at Y=0..4 when world extends below Y=0
+                    if (minY < 0 && by >= 0 && by <= 4 && primer.getBlockState(bx, by, bz).getBlock() == Blocks.BEDROCK) {
+                        primer.setBlockState(bx, by, bz, stone);
+                    }
                 }
             }
         }

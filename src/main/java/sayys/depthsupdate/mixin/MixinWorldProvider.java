@@ -17,7 +17,7 @@ public abstract class MixinWorldProvider {
         WorldProvider self = (WorldProvider) (Object) this;
         HeightContext ctx = HeightManager.get(self.getDimension());
         if (ctx.isExtended()) {
-            cir.setReturnValue(ctx.totalHeight());
+            cir.setReturnValue(ctx.maxY());
         }
     }
 
@@ -26,7 +26,7 @@ public abstract class MixinWorldProvider {
         WorldProvider self = (WorldProvider) (Object) this;
         HeightContext ctx = HeightManager.get(self.getDimension());
         if (ctx.isExtended()) {
-            cir.setReturnValue(ctx.totalHeight());
+            cir.setReturnValue(ctx.maxY());
         }
     }
 }

@@ -537,6 +537,9 @@ public abstract class MixinChunk {
                 }
             }
         }
+
+        // Recompute heightmap and skylight after re-filling blocks across full Y range
+        this.generateSkylightMap();
     }
 
     /**
