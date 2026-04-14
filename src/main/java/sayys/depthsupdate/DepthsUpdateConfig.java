@@ -89,6 +89,11 @@ public class DepthsUpdateConfig {
         @Config.Name("Convert Old Worlds")
         @Config.Comment("When loading chunks from a non-extended world, fill below Y=0 with stone.")
         public boolean convertOldWorlds = true;
+
+        @Config.Name("Extend Custom World Types")
+        @Config.Comment("Apply deep terrain fill (bedrock, deepslate, stone) below Y=0 for non-vanilla chunk generators (e.g. Biomes O' Plenty, RTG).")
+        @Config.RequiresMcRestart
+        public boolean extendCustomWorldTypes = true;
     }
 
     @Config.Name("Generate Underground Rivers")

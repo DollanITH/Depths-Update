@@ -32,7 +32,8 @@
     "MixinBlockMatcher",
     "MixinIFluidStatePrimer",
     "MixinWorldEntitySpawner",
-    "MixinEntity"
+    "MixinEntity",
+    "MixinChunkProviderServer"
   ],
   "server": [],
   "setSourceFile": true,
