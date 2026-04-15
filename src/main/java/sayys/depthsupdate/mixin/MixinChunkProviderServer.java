@@ -1,5 +1,7 @@
 package sayys.depthsupdate.mixin;
 
+import java.util.Random;
+
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.WorldServer;
@@ -19,19 +21,14 @@ import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
-
-import java.util.Random;
+import sayys.depthsupdate.world.generation.AquiferGenerator;
+import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
+import sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator;
+import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
 /**
- * Global hook for extending custom world types (BOP, RTG, OTG, etc.)
+ * Global hook for extending custom world types
  * that use their own IChunkGenerator instead of ChunkGeneratorOverworld.
- *
- * Fills basic deep terrain (bedrock/deepslate/stone) below Y=0 for any
- * non-vanilla generator when the world has extended height enabled.
- *
- * Uses @Redirect on generateChunk() so we only process freshly generated chunks,
- * not cached or disk-loaded ones. Writes directly to ExtendedBlockStorage arrays
- * to avoid triggering relighting, block events, or cascading chunk loads.
  */
 @Mixin(ChunkProviderServer.class)
 public class MixinChunkProviderServer {
@@ -45,6 +42,15 @@ public class MixinChunkProviderServer {
 
     @Unique
     private Random depthsupdate$fillRandom;
+
+    @Unique
+    private UndergroundRiverGenerator depthsupdate$riverGenerator;
+
+    @Unique
+    private CaveNoiseGenerator depthsupdate$noiseCaveGenerator;
+
+    @Unique
+    private AquiferGenerator depthsupdate$aquiferGenerator;
 
     @Redirect(
         method = "provideChunk(II)Lnet/minecraft/world/chunk/Chunk;",
@@ -92,7 +98,7 @@ public class MixinChunkProviderServer {
         int deepslateMaxY = DepthsUpdateConfig.deepslateMaxY;
         int transitionRange = DepthsUpdateConfig.deepslateTransitionRange;
         int fullDeepslateY = deepslateMaxY - transitionRange;
-        int fillMaxY = Math.max(0, deepslateMaxY);
+        int fillMaxY = Math.max(4, deepslateMaxY);
 
         ExtendedBlockStorage[] storageArrays = chunk.getBlockStorageArray();
         boolean hasSkyLight = this.world.provider.hasSkyLight();
@@ -118,7 +124,7 @@ public class MixinChunkProviderServer {
                     } else if (by < 0) {
                         state = stone;
                     } else {
-                        // Y >= 0 and >= deepslateMaxY: check for vanilla bedrock replacement
+                        // check for vanilla bedrock replacement
                         if (by <= 4) {
                             int storageIdx = ctx.toStorageIndex(by);
 
@@ -150,6 +156,30 @@ public class MixinChunkProviderServer {
                     section.set(bx, by & 15, bz, state);
                 }
             }
+        }
+
+        ChunkPrimerAdapter adapter = new ChunkPrimerAdapter(chunk, ctx);
+
+        if (DepthsUpdateConfig.generateUndergroundRivers) {
+            if (this.depthsupdate$riverGenerator == null) {
+                this.depthsupdate$riverGenerator = new UndergroundRiverGenerator(this.world);
+            }
+
+            this.depthsupdate$riverGenerator.generate(x, z, adapter);
+        }
+
+        if (this.depthsupdate$noiseCaveGenerator == null) {
+            this.depthsupdate$noiseCaveGenerator = new CaveNoiseGenerator(this.world);
+        }
+
+        this.depthsupdate$noiseCaveGenerator.generate(x, z, adapter);
+
+        if (DepthsUpdateConfig.aquifers.enableAquifers) {
+            if (this.depthsupdate$aquiferGenerator == null) {
+                this.depthsupdate$aquiferGenerator = new AquiferGenerator(this.world);
+            }
+
+            this.depthsupdate$aquiferGenerator.generate(x, z, adapter);
         }
 
         chunk.generateSkylightMap();
