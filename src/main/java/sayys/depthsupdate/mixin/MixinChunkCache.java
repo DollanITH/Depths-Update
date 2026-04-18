@@ -40,7 +40,11 @@ public abstract class MixinChunkCache {
             return;
         }
 
-        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
+        int y = pos.getY();
+        int minY = HeightManager.getMinY(this.world);
+        int maxY = HeightManager.getMaxY(this.world);
+
+        if (y >= minY && y < maxY) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -55,6 +59,8 @@ public abstract class MixinChunkCache {
             }
 
             cir.setReturnValue(Blocks.AIR.getDefaultState());
+        } else {
+            cir.setReturnValue(Blocks.AIR.getDefaultState());
         }
     }
 
@@ -64,7 +70,13 @@ public abstract class MixinChunkCache {
             return;
         }
 
-        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
+        int y = pos.getY();
+        int minY = HeightManager.getMinY(this.world);
+        int maxY = HeightManager.getMaxY(this.world);
+
+        if (y < minY || y >= maxY) {
+            cir.setReturnValue(type.defaultLightValue);
+        } else if (y < 0 || y >= 256) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -82,7 +94,13 @@ public abstract class MixinChunkCache {
             return;
         }
 
-        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
+        int y = pos.getY();
+        int minY = HeightManager.getMinY(this.world);
+        int maxY = HeightManager.getMaxY(this.world);
+
+        if (y < minY || y >= maxY) {
+            cir.setReturnValue(type.defaultLightValue);
+        } else if (y < 0 || y >= 256) {
             int i = (pos.getX() >> 4) - this.chunkX;
             int j = (pos.getZ() >> 4) - this.chunkZ;
 
@@ -100,7 +118,13 @@ public abstract class MixinChunkCache {
             return;
         }
 
-        if (pos.getY() >= HeightManager.getMinY(this.world) && pos.getY() < 0) {
+        int y = pos.getY();
+        int minY = HeightManager.getMinY(this.world);
+        int maxY = HeightManager.getMaxY(this.world);
+
+        if (y < minY || y >= maxY) {
+            cir.setReturnValue(_default);
+        } else if (y < 0 || y >= 256) {
             int x = (pos.getX() >> 4) - this.chunkX;
             int z = (pos.getZ() >> 4) - this.chunkZ;
 

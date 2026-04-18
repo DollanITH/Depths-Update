@@ -83,7 +83,9 @@ public abstract class MixinWorld {
         if (!HeightManager.isExtended(self)) {
             return;
         }
-        if (pos.getY() >= HeightManager.getMinY(self) && pos.getY() < 0) {
+        int y = pos.getY();
+
+        if ((y >= HeightManager.getMinY(self) && y < 0) || (y >= 256 && y < HeightManager.getMaxY(self))) {
             cir.setReturnValue(this.getChunk(pos).getLightSubtracted(pos, 0));
         }
     }
@@ -94,7 +96,9 @@ public abstract class MixinWorld {
         if (!HeightManager.isExtended(self)) {
             return;
         }
-        if (pos.getY() >= HeightManager.getMinY(self) && pos.getY() < 0) {
+        int y = pos.getY();
+
+        if ((y >= HeightManager.getMinY(self) && y < 0) || (y >= 256 && y < HeightManager.getMaxY(self))) {
             if (pos.getX() >= -30000000 && pos.getZ() >= -30000000 && pos.getX() < 30000000
                     && pos.getZ() < 30000000) {
                 if (checkNeighbors && this.getBlockState(pos).useNeighborBrightness()) {
@@ -130,7 +134,9 @@ public abstract class MixinWorld {
         if (!HeightManager.isExtended(self)) {
             return;
         }
-        if (pos.getY() >= HeightManager.getMinY(self) && pos.getY() < 0) {
+        int y = pos.getY();
+
+        if ((y >= HeightManager.getMinY(self) && y < 0) || (y >= 256 && y < HeightManager.getMaxY(self))) {
             if (!this.isValid(pos)) {
                 cir.setReturnValue(type.defaultLightValue);
             } else if (!this.isBlockLoaded(pos)) {

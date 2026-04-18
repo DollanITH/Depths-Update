@@ -33,7 +33,8 @@
     "MixinIFluidStatePrimer",
     "MixinWorldEntitySpawner",
     "MixinEntity",
-    "MixinChunkProviderServer"
+    "MixinChunkProviderServer",
+    "MixinMinecraftServer"
   ],
   "server": [],
   "setSourceFile": true,

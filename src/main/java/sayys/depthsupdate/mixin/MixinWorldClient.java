@@ -30,7 +30,9 @@ public abstract class MixinWorldClient {
             return;
         }
 
-        if (pos.getY() >= HeightManager.getMinY(world) && pos.getY() < 0) {
+        int y = pos.getY();
+
+        if ((y >= HeightManager.getMinY(world) && y < 0) || (y >= 256 && y < HeightManager.getMaxY(world))) {
             if (!world.provider.hasSkyLight() && type == EnumSkyBlock.SKY) {
                 cir.setReturnValue(0);
             } else {
