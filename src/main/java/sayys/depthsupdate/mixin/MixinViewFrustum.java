@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(ViewFrustum.class)
+@Mixin(value = ViewFrustum.class, priority = 1100)
 public abstract class MixinViewFrustum {
     @Shadow
     protected int countChunksX;

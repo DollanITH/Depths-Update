@@ -40,6 +40,7 @@ dependencies {
     // modImplementation("curse.maven:redcore-873867:7455761")
     // modImplementation("curse.maven:naughthirium-1153019:6473489")
     // modImplementation "curse.maven:alfheim-910715:6687458"
+    // modImplementation "curse.maven:valkyrie-874067:7352605"
 
     fileTree(dir: 'libs', include: ['*.jar']).each { jar ->
         modCompileOnly files(jar)
