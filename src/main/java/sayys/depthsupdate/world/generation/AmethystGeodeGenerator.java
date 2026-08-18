@@ -74,6 +74,10 @@ public class AmethystGeodeGenerator implements IWorldGenerator {
 
         int x = chunkX * 16 + random.nextInt(16);
         int minY = DepthsUpdateConfig.amethystGeodes.geodeMinY;
+        if (minY < DepthsUpdateConfig.heightExtension.globalMinY + 8)
+        {
+            minY = DepthsUpdateConfig.heightExtension.globalMinY + 8;
+        }
         int maxY = DepthsUpdateConfig.amethystGeodes.geodeMaxY;
         int yRange = Math.max(1, maxY - minY + 1);
         int y = minY + random.nextInt(yRange);

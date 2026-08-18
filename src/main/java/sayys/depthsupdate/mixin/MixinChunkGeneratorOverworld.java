@@ -6,6 +6,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.ChunkGeneratorOverworld;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import net.minecraft.world.chunk.Chunk;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,6 +25,7 @@ import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
 @Mixin(ChunkGeneratorOverworld.class)
 public abstract class MixinChunkGeneratorOverworld {
+    @Final
     @Shadow
     private World world;
 

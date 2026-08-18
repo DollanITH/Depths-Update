@@ -36,6 +36,9 @@ public class DripstoneCavesGenerator implements IWorldGenerator {
         if (random.nextInt(DepthsUpdateConfig.dripstoneCaves.dripstoneCavesRarity) == 0) {
             int x = chunkX * 16 + random.nextInt(16);
             int minY = DepthsUpdateConfig.dripstoneCaves.dripstoneCavesMinY;
+            if (minY < DepthsUpdateConfig.heightExtension.globalMinY) {
+                minY = DepthsUpdateConfig.heightExtension.globalMinY;
+            }
             int maxY = DepthsUpdateConfig.dripstoneCaves.dripstoneCavesMaxY;
             int yRange = Math.max(1, maxY - minY + 1);
 

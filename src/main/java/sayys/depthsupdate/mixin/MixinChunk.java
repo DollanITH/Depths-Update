@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumSkyBlock;
@@ -24,6 +25,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -131,7 +133,7 @@ public abstract class MixinChunk {
         return HeightManager.isExtended(this.world);
     }
 
-    @Inject(method = "<init>(Lnet/minecraft/world/World;II)V", at = @At("HEAD"))
+    @Inject(method = "<init>(Lnet/minecraft/world/World;II)V", at = @At(value = "HEAD", unsafe = true))
     private static void depthsupdate$captureWorldForInit(World worldIn, int x, int z, CallbackInfo ci) {
         depthsupdate$initContext.set(HeightManager.get(worldIn));
     }
@@ -542,6 +544,7 @@ public abstract class MixinChunk {
         this.generateSkylightMap();
     }
 
+    
     /**
      * Find the highest filled section, checking upper extension first, then vanilla, then negative.
      */

@@ -45,6 +45,11 @@ public final class HeightManager {
             int lavaLevel = cfg.lavaLevel;
             int voidDamageLevel = cfg.voidDamageLevel;
 
+            if (lavaLevel < globalMinY) {
+                LOGGER.error("lavaLevel ({}) must be greater than globalMinY ({})!", lavaLevel, globalMinY);
+                lavaLevel = globalMinY + 11;
+            }
+
             HeightContext globalContext = new HeightContext(globalMinY, globalMaxY, lavaLevel, voidDamageLevel, seaLevel);
 
             Map<Integer, HeightContext> newContexts = new HashMap<>();

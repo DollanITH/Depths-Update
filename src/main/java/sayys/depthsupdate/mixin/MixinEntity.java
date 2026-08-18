@@ -19,6 +19,9 @@ public abstract class MixinEntity {
     @Shadow
     public World world;
 
+    @Shadow
+    public double motionY; // 垂直速度
+
     /**
      * Vanilla checks {@code posY < -64.0} in onEntityUpdate to apply void damage.
      * We replace -64.0 with the configured void damage level for the entity's dimension.

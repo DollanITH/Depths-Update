@@ -40,6 +40,9 @@ public class LushCavesGenerator implements IWorldGenerator {
         if (random.nextInt(DepthsUpdateConfig.lushCaves.lushCavesRarity) == 0) {
             int x = chunkX * 16 + random.nextInt(16);
             int minY = DepthsUpdateConfig.lushCaves.lushCavesMinY;
+            if (minY < DepthsUpdateConfig.heightExtension.globalMinY) {
+                minY = DepthsUpdateConfig.heightExtension.globalMinY;
+            }
             int maxY = DepthsUpdateConfig.lushCaves.lushCavesMaxY;
             int yRange = maxY - minY + 1;
 

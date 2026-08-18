@@ -51,12 +51,12 @@ public class DepthsUpdateConfig {
         @Config.Name("Global Minimum Y")
         @Config.Comment("The minimum Y coordinate for extended dimensions. Must be a multiple of 16.")
         @Config.RangeInt(min = -2048, max = 0)
-        public int globalMinY = -64;
+        public int globalMinY = -48;
 
         @Config.Name("Global Maximum Y")
         @Config.Comment("The maximum Y coordinate for extended dimensions. Must be a multiple of 16.")
         @Config.RangeInt(min = 256, max = 2048)
-        public int globalMaxY = 320;
+        public int globalMaxY = 352;
 
         @Config.Name("Extended Dimensions")
         @Config.Comment("Dimension IDs to apply height extension to. Default: [0] (Overworld only).")
@@ -80,11 +80,11 @@ public class DepthsUpdateConfig {
 
         @Config.Name("Lava Level")
         @Config.Comment("The Y level at which underground air is replaced with lava.")
-        public int lavaLevel = -54;
+        public int lavaLevel = -37;
 
         @Config.Name("Void Damage Level")
         @Config.Comment("The Y level at which players start taking void damage.")
-        public int voidDamageLevel = -128;
+        public int voidDamageLevel = -92;
 
         @Config.Name("Convert Old Worlds")
         @Config.Comment("When loading chunks from a non-extended world, fill below Y=0 with stone.")
@@ -178,7 +178,7 @@ public class DepthsUpdateConfig {
         @Config.Name("Enable Lush Caves")
         @Config.Comment("Allow Lush Caves to generate underground.")
         @Config.RequiresMcRestart
-        public boolean enableLushCaves = true;
+        public boolean enableLushCaves = false;
 
         @Config.Name("Lush Caves Rarity")
         @Config.Comment("The rarity of Lush Caves. Higher numbers mean rarer caves. (1 in X chance per chunk)")
@@ -216,7 +216,7 @@ public class DepthsUpdateConfig {
         @Config.Name("Enable Dripstone Caves")
         @Config.Comment("Allow Dripstone Caves to generate underground.")
         @Config.RequiresMcRestart
-        public boolean enableDripstoneCaves = true;
+        public boolean enableDripstoneCaves = false;
 
         @Config.Name("Dripstone Caves Rarity")
         @Config.Comment("The rarity of Dripstone Caves. Higher numbers mean rarer caves. (1 in X chance per chunk)")
@@ -252,7 +252,7 @@ public class DepthsUpdateConfig {
     public static class AmethystGeodes {
         @Config.Name("Enable Amethyst Geodes")
         @Config.RequiresMcRestart
-        public boolean enableAmethystGeodes = true;
+        public boolean enableAmethystGeodes = false;
 
         @Config.Name("Geode Rarity")
         @Config.Comment("The rarity of Amethyst Geodes. Higher numbers mean rarer geodes. (1 in X chance per chunk)")

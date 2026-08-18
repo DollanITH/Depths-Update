@@ -10,6 +10,8 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
     private static final boolean OPTIFINE_LOADED = detectOptiFine();
     private static final boolean NOTHIRIUM_LOADED = detectNothirium();
     private static final boolean CELERITAS_LOADED = detectCeleritas();
+    private static final boolean MINIHUD_LOADED = detectMinihud();
+    private static final boolean WORLDEDIT_LOADED = detectWorldEdit();
 
     private static boolean detectOptiFine() {
         try {
@@ -31,7 +33,23 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
 
     private static boolean detectCeleritas() {
         try {
+            Class.forName("fi.dy.masa.minihud.MiniHud");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    private static boolean detectMinihud() {
+        try {
             Class.forName("org.taumc.celeritas.CeleritasVintage");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    private static boolean detectWorldEdit() {
+        try {
+            Class.forName("com.sk89q.worldedit");
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -70,6 +88,14 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
 
         if (mixinClassName.contains(".mod.celeritas.")) {
             return CELERITAS_LOADED;
+        }
+
+        if (mixinClassName.contains(".masa.minihud.")) {
+            return MINIHUD_LOADED;
+        }
+
+        if (mixinClassName.contains(".sk89q.worldedit")) {
+            return WORLDEDIT_LOADED;
         }
 
         return true;

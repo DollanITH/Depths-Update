@@ -5,20 +5,23 @@
   "compatibilityLevel": "JAVA_21",
   "target": "@env(MOD)",
   "client": [
-    "optifine.MixinOptiFineRenderChunk",
-    "optifine.MixinOptiFineViewFrustum",
-    "optifine.MixinOptiFineRenderChunkUtils",
-    "nothirium.MixinNothiriumWorldUtil",
-    "nothirium.MixinNothiriumRenderChunk",
+    "celeritas.MixinCeleritasWorldRenderer",
+    "celeritas.MixinCeleritasWorldSlice",
+    "celeritas.MixinClonedChunkSection",
+    "celeritas.MixinVintageRenderSectionManager",
+    "minihud.RenderHandlerMixin",
+    "nothirium.MixinNothiriumChunkRenderManager",
     "nothirium.MixinNothiriumDirectionDown",
     "nothirium.MixinNothiriumDirectionUp",
-    "nothirium.MixinNothiriumChunkRenderManager",
-    "celeritas.MixinCeleritasWorldRenderer",
-    "celeritas.MixinVintageRenderSectionManager",
-    "celeritas.MixinCeleritasWorldSlice",
-    "celeritas.MixinClonedChunkSection"
+    "nothirium.MixinNothiriumRenderChunk",
+    "nothirium.MixinNothiriumWorldUtil",
+    "optifine.MixinOptiFineRenderChunk",
+    "optifine.MixinOptiFineRenderChunkUtils",
+    "optifine.MixinOptiFineViewFrustum"
   ],
-  "mixins": [],
+  "mixins": [
+    "worldedit.MixinForgeWorld"
+  ],
   "server": [],
   "setSourceFile": true,
   "minVersion": "0.8.7"

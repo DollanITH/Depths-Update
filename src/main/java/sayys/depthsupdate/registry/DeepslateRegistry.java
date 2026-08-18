@@ -55,7 +55,7 @@ public class DeepslateRegistry {
     public static final Block calcite = new BlockDeepslateVariant("calcite", 0.75F, 0.75F, SoundType.STONE);
     public static final Block tuff = new BlockDeepslateVariant("tuff", 1.5F, 6.0F, SoundType.STONE);
     public static final Block smooth_basalt = new BlockDeepslateVariant("smooth_basalt", 1.25F, 4.2F, SoundType.STONE);
-
+    public static Item  item_slab;
     // Ores
     public static final Block copper_ore = new BlockCopperOre();
     public static final Block deepslate_coal_ore = new BlockDeepslateOre("deepslate_coal_ore");
@@ -88,7 +88,8 @@ public class DeepslateRegistry {
         .skipDefaultModel(cobbled_deepslate_wall, polished_deepslate_wall, deepslate_brick_wall, deepslate_tile_wall, deepslate_slab_half, deepslate_slab_double)
         .withItemBlockProvider((block, event) -> {
             if (block == deepslate_slab_half) {
-                event.getRegistry().register(new ItemSlab(deepslate_slab_half, deepslate_slab_half, deepslate_slab_double).setRegistryName(block.getRegistryName()));
+                event.getRegistry().register(
+                        item_slab = new ItemSlab(deepslate_slab_half, deepslate_slab_half, deepslate_slab_double).setRegistryName(block.getRegistryName()));
             } else if (block != deepslate_slab_double) {
                 event.getRegistry().register(new ItemBlock(block).setRegistryName(block.getRegistryName()));
             }

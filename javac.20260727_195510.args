@@ -1,0 +1,3 @@
+-cp
+src/main/java
+src/main/java/sayys/depthsupdate/mixin/MixinAnvilChunkLoader.java

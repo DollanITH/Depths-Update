@@ -1,12 +1,29 @@
+/**
+ * 还原后的 ChunkProviderServer Mixin
+ * 源文件: MixinChunkProviderServer.java
+ * Minecraft版本: 1.12.2
+ * 模组: Depths Update
+ * <p>
+ * 这个Mixin修改了世界生成流程，主要功能：
+ * 1. 扩展世界高度（Height Extension）
+ * 2. 过滤基岩层（Bedrock Filter）
+ * 3. 填充自定义世界的深度
+ * 4. 生成地下河流（Underground Rivers）
+ * 5. 生成洞穴噪音（Cave Noise）
+ */
+
 package sayys.depthsupdate.mixin;
 
 import java.util.Random;
-
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
+import net.minecraft.world.gen.ChunkGeneratorDebug;
+import net.minecraft.world.gen.ChunkGeneratorFlat;
 import net.minecraft.world.gen.ChunkGeneratorOverworld;
 import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraft.world.gen.IChunkGenerator;
@@ -16,7 +33,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
-
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
@@ -27,18 +43,18 @@ import sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator;
 import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
 /**
- * Global hook for extending custom world types
- * that use their own IChunkGenerator instead of ChunkGeneratorOverworld.
+ * Mixin用于修改ChunkProviderServer的行为
  */
-@Mixin(ChunkProviderServer.class)
+@Mixin({ChunkProviderServer.class})
 public class MixinChunkProviderServer {
-    @Shadow
-    @Final
-    private IChunkGenerator chunkGenerator;
 
     @Shadow
     @Final
-    private WorldServer world;
+    public IChunkGenerator chunkGenerator;
+
+    @Shadow
+    @Final
+    public WorldServer world;
 
     @Unique
     private Random depthsupdate$fillRandom;
@@ -52,43 +68,58 @@ public class MixinChunkProviderServer {
     @Unique
     private AquiferGenerator depthsupdate$aquiferGenerator;
 
+    public MixinChunkProviderServer() {
+        super();
+    }
+
+    /**
+     * 重定向IChunkGenerator.generateChunks()方法
+     *
+     * 原始方法签名:
+     * Chunk generateChunks(int x, int z)
+     *
+     * 被注入到的方法:
+     * ChunkProviderServer.loadChunk(int x, int z)
+     */
     @Redirect(
-        method = "provideChunk(II)Lnet/minecraft/world/chunk/Chunk;",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/world/gen/IChunkGenerator;generateChunk(II)Lnet/minecraft/world/chunk/Chunk;"
-        )
+            method = "provideChunk(II)Lnet/minecraft/world/chunk/Chunk;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/gen/IChunkGenerator;generateChunk(II)Lnet/minecraft/world/chunk/Chunk;"
+            )
     )
-    private Chunk depthsupdate$onGenerateChunk(IChunkGenerator generator, int x, int z) {
-        Chunk chunk = generator.generateChunk(x, z);
+    private Chunk depthsupdate$onGenerateChunk(IChunkGenerator generator, int chunkX, int chunkZ) {
+        Chunk chunk = generator.generateChunk(chunkX, chunkZ);
+        int x = chunk.x;
+        int z = chunk.z;
 
-        if (generator instanceof ChunkGeneratorOverworld) {
-            return chunk;
-        }
+        // 检查是否是原版主世界生成器
+        boolean isVanillaOverworld = generator instanceof ChunkGeneratorOverworld;
 
-        if (!DepthsUpdateConfig.heightExtension.extendCustomWorldTypes) {
-            return chunk;
-        }
+        // 检查是否是扁平化或调试世界生成器
+        boolean isFlatOrDebug = generator instanceof ChunkGeneratorFlat || generator instanceof ChunkGeneratorDebug;
 
-        if (!HeightManager.isExtended(this.world)) {
-            return chunk;
-        }
+        // 检查是否是扩展高度的世界
+        boolean isDeepWorld = !isFlatOrDebug &&
+                HeightManager.isExtended(this.world) &&
+                HeightManager.get(this.world).minY() < 0;
 
-        if (chunk == null) {
+        // 如果是扩展高度世界且不是自定义生成器，则填充深度
+        boolean shouldFillCustom = isDeepWorld && !isVanillaOverworld &&
+                DepthsUpdateConfig.heightExtension.extendCustomWorldTypes;
+
+        // 如果需要过滤基岩（原版主世界或扩展高度世界）
+        if (!((isDeepWorld && (isVanillaOverworld || shouldFillCustom)))) {
             return chunk;
         }
 
         HeightContext ctx = HeightManager.get(this.world);
         int minY = ctx.minY();
 
-        if (minY >= 0) {
-            return chunk;
-        }
-
+        // Initialize fillRandom if not already done
         if (this.depthsupdate$fillRandom == null) {
             this.depthsupdate$fillRandom = new Random();
         }
-
         this.depthsupdate$fillRandom.setSeed((long) x * 341873128712L + (long) z * 132897987541L);
 
         IBlockState stone = Blocks.STONE.getDefaultState();
@@ -186,4 +217,5 @@ public class MixinChunkProviderServer {
 
         return chunk;
     }
+
 }
