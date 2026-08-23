@@ -62,6 +62,10 @@ configurations {
     compileOnly.extendsFrom(modCompileOnly)
     modRuntimeOnly
     runtimeOnly.extendsFrom(modRuntimeOnly)
+
+    all {
+        exclude group: 'net.lenni0451', module: 'Reflect'
+    }
 }
 
 unimined.minecraft {
@@ -76,7 +80,7 @@ unimined.minecraft {
             accessTransformer "${rootProject.projectDir}/src/main/resources/${propertyString('access_transformer_locations')}"
         }
 
-        loader("0.5.7-alpha")
+        loader("0.6.10-alpha")
 
         runs.auth.username = minecraft_username
         runs.all {
@@ -260,3 +264,4 @@ tasks.withType(JavaCompile).configureEach {
 
 apply from: 'gradle/scripts/publishing.gradle'
 apply from: 'gradle/scripts/extra.gradle'
+
