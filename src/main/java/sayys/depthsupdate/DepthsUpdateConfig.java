@@ -72,7 +72,7 @@ public class DepthsUpdateConfig {
                 "Overrides globalMinY/globalMaxY (and optionally lava/void levels) for the specified dimension."
         })
         @Config.RequiresMcRestart
-        public String[] dimensionOverrides = {};
+        public String[] dimensionOverrides = {"3:0:320"};
 
         @Config.Name("Sea Level")
         @Config.Comment("The sea level Y coordinate. Used by terrain generation and API queries.")

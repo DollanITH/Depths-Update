@@ -26,7 +26,6 @@ dependencies {
     compileOnly "com.cleanroommc:sponge-mixin:0.20.12+mixin.0.8.7"
     implementation "org.spongepowered:noise:2.0.0-SNAPSHOT"
     implementation "it.unimi.dsi:fastutil:8.5.18"
-    implementation 'net.lenni0451:Reflect:1.6.0'
 
     if (propertyBool('enable_lwjglx')) {
         compileOnly "com.cleanroommc:lwjglx:1.0.0"
@@ -35,8 +34,8 @@ dependencies {
     modImplementation("curse.maven:fugue-1005815:7663573")
     modImplementation("curse.maven:had-enough-items-557549:7515497")
     modImplementation("curse.maven:fluidloggedapi-485654:7581579")
-    modImplementation("curse.maven:renderlib-624967:6461209")
-    modImplementation("curse.maven:nothirium-624960:7441674")
+    compileOnly("curse.maven:renderlib-624967:6461209")
+    compileOnly("curse.maven:nothirium-624960:7441674")
     modImplementation("curse.maven:realistic-terrain-generation-plus-981628:5466561")
     compileOnly("maven.modrinth:UMxybHE8:Ilot9zRz")
 

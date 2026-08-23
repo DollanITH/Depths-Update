@@ -16,6 +16,7 @@ import org.jspecify.annotations.NonNull;
 import sayys.depthsupdate.client.AssetHandler;
 import sayys.depthsupdate.proxy.IProxy;
 import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.remaper.Remaper;
 import sayys.depthsupdate.world.generation.AmethystGeodeGenerator;
 import sayys.depthsupdate.world.generation.DripstoneCavesGenerator;
 import sayys.depthsupdate.world.generation.LushCavesGenerator;
@@ -51,6 +52,7 @@ public class DepthsUpdateMod {
     public void preInit(FMLPreInitializationEvent event) {
         LOGGER.info("Hello From {}!", Reference.MOD_NAME);
         LOGGER.info("Proxy is {}", proxy);
+        Remaper.registerFixable();
     }
 
     @Mod.EventHandler

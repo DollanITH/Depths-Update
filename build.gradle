@@ -63,9 +63,6 @@ configurations {
     modRuntimeOnly
     runtimeOnly.extendsFrom(modRuntimeOnly)
 
-    all {
-        exclude group: 'net.lenni0451', module: 'Reflect'
-    }
 }
 
 unimined.minecraft {
