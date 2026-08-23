@@ -7,12 +7,13 @@
  */
 
 plugins {
-    id("java")
-    id("java-library")
-    id("maven-publish")
-    id("com.gradleup.shadow") version "9.4.0"
-    id("xyz.wagyourtail.unimined") version "1.4.17-kappa"
-    id("net.kyori.blossom") version "2.2.0"
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'xyz.wagyourtail.unimined' version '1.4.37-kappa'
+    id 'net.kyori.blossom' version '2.2.0'
+    id 'com.diffplug.spotless' version '8.10.0'
+    id 'com.gradleup.shadow' version '9.6.1' apply false
 }
 
 apply from: "gradle/scripts/helpers.gradle"
@@ -184,7 +185,6 @@ sourceSets {
 }
 
 if (!propertyBool('enable_shadow')) {
-    shadowJar.enabled = false
 }
 
 jar {
@@ -219,15 +219,9 @@ jar {
         }
     }
     if (propertyBool('enable_shadow')) {
-        finalizedBy(tasks.named("remapShadowJar"))
     } else {
         finalizedBy(tasks.named("remapJar"))
     }
-}
-
-shadowJar {
-    configurations = [project.configurations.shadow]
-    archiveClassifier = "shadow"
 }
 
 remapJar {
