@@ -2,6 +2,8 @@ package sayys.depthsupdate;
 
 import java.util.List;
 import java.util.Set;
+
+import net.minecraftforge.fml.common.Loader;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -11,7 +13,6 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
     private static final boolean NOTHIRIUM_LOADED = detectNothirium();
     private static final boolean CELERITAS_LOADED = detectCeleritas();
     private static final boolean MINIHUD_LOADED = detectMinihud();
-    private static final boolean WORLDEDIT_LOADED = detectWorldEdit();
 
     private static boolean detectOptiFine() {
         try {
@@ -31,7 +32,7 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
         }
     }
 
-    private static boolean detectCeleritas() {
+    private static boolean detectMinihud() {
         try {
             Class.forName("fi.dy.masa.minihud.MiniHud");
             return true;
@@ -39,17 +40,9 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return false;
         }
     }
-    private static boolean detectMinihud() {
+    private static boolean detectCeleritas() {
         try {
             Class.forName("org.taumc.celeritas.CeleritasVintage");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-    private static boolean detectWorldEdit() {
-        try {
-            Class.forName("com.sk89q.worldedit");
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -94,11 +87,11 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return MINIHUD_LOADED;
         }
 
-        if (mixinClassName.contains(".sk89q.worldedit")) {
-            return WORLDEDIT_LOADED;
+        if (mixinClassName.contains(".sk89q.worldedit.")) {
+            return Loader.isModLoaded("worldedit");
         }
 
-        return true;
+        return false;
     }
 
     @Override

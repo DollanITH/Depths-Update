@@ -20,7 +20,8 @@
     "optifine.MixinOptiFineViewFrustum"
   ],
   "mixins": [
-    "worldedit.MixinForgeWorld"
+    "worldedit.MixinForgeWorld",
+    "optifine.EBSAccessor"
   ],
   "server": [],
   "setSourceFile": true,

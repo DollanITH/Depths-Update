@@ -4,19 +4,19 @@ import java.lang.reflect.Method;
 import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
+import net.optifine.util.RenderChunkUtils;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(targets = "net.optifine.util.RenderChunkUtils", remap = false)
+@Mixin(value = RenderChunkUtils.class, remap = false)
 public class MixinOptiFineRenderChunkUtils {
     @Unique
     private static Method getChunkMethod;
-
-    @Unique
-    private static Method getBlockRefCountMethod;
 
     @Unique
     private static boolean reflectionInitialized = false;
@@ -30,9 +30,6 @@ public class MixinOptiFineRenderChunkUtils {
         try {
             getChunkMethod = RenderChunk.class.getDeclaredMethod("getChunk");
             getChunkMethod.setAccessible(true);
-
-            getBlockRefCountMethod = ExtendedBlockStorage.class.getDeclaredMethod("getBlockRefCount");
-            getBlockRefCountMethod.setAccessible(true);
         } catch (Exception e) {}
     }
 
@@ -40,18 +37,27 @@ public class MixinOptiFineRenderChunkUtils {
      * @author sayys
      * @reason Fix ArrayIndexOutOfBoundsException by correctly mapping Y coords to storage array indices.
      */
-    @Overwrite
-    public static int getCountBlocks(RenderChunk renderChunk) {
+    @Inject(method = "getCountBlocks", at = @At(value = "HEAD"), cancellable = true)
+    private static void getCountBlocks(RenderChunk renderChunk, CallbackInfoReturnable<Integer> cir) {
         initReflection();
 
         try {
             Chunk chunk = (Chunk) getChunkMethod.invoke(renderChunk);
 
-            if (chunk == null) return 0;
+            if (chunk == null) {
+                cir.setReturnValue(0);
+                cir.cancel();
+            }
 
-            ExtendedBlockStorage[] storages = chunk.getBlockStorageArray();
+            ExtendedBlockStorage[] storages = null;
+            if (chunk != null) {
+                storages = chunk.getBlockStorageArray();
+            }
 
-            if (storages == null) return 0;
+            if (storages == null) {
+                cir.setReturnValue(0);
+                cir.cancel();
+            }
 
             int y = renderChunk.getPosition().getY();
             int index = HeightManager.getMaxContext().toStorageIndex(y);
@@ -60,11 +66,14 @@ public class MixinOptiFineRenderChunkUtils {
                 ExtendedBlockStorage ebs = storages[index];
 
                 if (ebs != null) {
-                    return (int) getBlockRefCountMethod.invoke(ebs);
+                    cir.setReturnValue(((EBSAccessor)ebs).depthsupdate$blockRefCount());
+                    cir.cancel();
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            return;
+        }
 
-        return 0;
+        cir.setReturnValue(0);
     }
 }

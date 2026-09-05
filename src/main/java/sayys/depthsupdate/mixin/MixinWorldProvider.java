@@ -29,4 +29,13 @@ public abstract class MixinWorldProvider {
             cir.setReturnValue(ctx.maxY());
         }
     }
+
+    @Inject(method = "getVoidFogYFactor", at = @At("HEAD"), cancellable = true)
+    private void depthsupdate$getVoidFogYFactor(@NonNull CallbackInfoReturnable<Double> cir) {
+        WorldProvider self = (WorldProvider) (Object) this;
+        HeightContext ctx = HeightManager.get(self.getDimension());
+        if (ctx.isExtended() && ctx.minY() < 0) {
+            cir.setReturnValue(Double.NaN);
+        }
+    }
 }

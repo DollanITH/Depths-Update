@@ -1,19 +1,16 @@
 package sayys.depthsupdate;
 
-import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLConstructionEvent;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.NonNull;
 
-import sayys.depthsupdate.client.AssetHandler;
 import sayys.depthsupdate.proxy.IProxy;
 import sayys.depthsupdate.registry.RegistryHandler;
 import sayys.depthsupdate.remaper.Remaper;
@@ -45,7 +42,7 @@ public class DepthsUpdateMod {
     @Mod.EventHandler
     @SideOnly(Side.CLIENT)
     public void construct(@NonNull FMLConstructionEvent event) {
-        AssetHandler.setup();
+        //AssetHandler.setup();
     }
 
     @Mod.EventHandler

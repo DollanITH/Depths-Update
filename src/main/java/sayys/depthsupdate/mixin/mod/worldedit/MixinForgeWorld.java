@@ -12,7 +12,7 @@ import sayys.depthsupdate.core.HeightManager;
 
 import java.lang.ref.WeakReference;
 
-@Mixin(value = ForgeWorld.class, remap = false)
+@Mixin(value = ForgeWorld.class)
 public class MixinForgeWorld {
 
     @Shadow

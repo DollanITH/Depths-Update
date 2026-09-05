@@ -18,7 +18,10 @@ repositories {
     maven {
         url = "https://repo.spongepowered.org/repository/maven-public/"
     }
-
+    maven {
+        name = 'Hileb'
+        url = 'https://ecdcaeb.github.io/maven/'
+    }
     mavenLocal() // Must be last for caching to work
 }
 
@@ -30,6 +33,8 @@ dependencies {
     if (propertyBool('enable_lwjglx')) {
         compileOnly "com.cleanroommc:lwjglx:1.0.0"
     }
+
+    compileOnly "net.optifine:optifine:1.12.2-HD_U_G5_unpatched_srg"
 
     modImplementation("curse.maven:fugue-1005815:7663573")
     modImplementation("curse.maven:had-enough-items-557549:7515497")
