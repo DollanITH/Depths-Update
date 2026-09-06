@@ -14,6 +14,7 @@ import net.minecraft.world.World;
 import sayys.depthsupdate.DepthsUpdateMod;
 import sayys.depthsupdate.registry.DeepslateRegistry;
 import sayys.depthsupdate.registry.RegistryHandler;
+import sayys.depthsupdate.registry.StandaloneRegistry;
 
 public class BlockInfestedDeepslate extends BlockRotatedPillar {
     public BlockInfestedDeepslate() {
@@ -23,7 +24,7 @@ public class BlockInfestedDeepslate extends BlockRotatedPillar {
         this.setTranslationKey("infested_deepslate");
         this.setHardness(0.75F);
         this.setResistance(0.75F);
-        this.setSoundType(SoundType.STONE);
+        this.setSoundType(StandaloneRegistry.DEEPSLATE);
         this.setCreativeTab(CreativeTabs.DECORATIONS);
     }
 

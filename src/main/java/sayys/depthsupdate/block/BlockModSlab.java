@@ -2,18 +2,22 @@ package sayys.depthsupdate.block;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockSlab;
+import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyEnum;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.creativetab.CreativeTabs;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.World;
 import sayys.depthsupdate.registry.DeepslateRegistry;
+import sayys.depthsupdate.registry.StandaloneRegistry;
 
 import java.util.Random;
 
@@ -26,6 +30,7 @@ public abstract class BlockModSlab extends BlockSlab {
         this.setRegistryName("depthsupdate", name);
         this.setTranslationKey(name);
         this.setCreativeTab(CreativeTabs.BUILDING_BLOCKS);
+        this.setSoundType(name.contains("deepslate") ? (getDefaultState().getValue(VARIANT) == Variant.COBBLED || getDefaultState().getValue(VARIANT) == Variant.POLISHED ? StandaloneRegistry.DEEPSLATE : StandaloneRegistry.DEEPSLATE_BRICKS) : SoundType.STONE);
         IBlockState iblockstate = this.blockState.getBaseState();
 
         if (!this.isDouble()) {
@@ -42,7 +47,7 @@ public abstract class BlockModSlab extends BlockSlab {
     }
 
     @Override
-    public ItemStack getItem(World worldIn, BlockPos pos, IBlockState state) {
+    public ItemStack getPickBlock(IBlockState state, RayTraceResult target, World world, BlockPos pos, EntityPlayer player) {
         return new ItemStack(DeepslateRegistry.item_slab, 1, state.getValue(VARIANT).getMetadata());
     }
 

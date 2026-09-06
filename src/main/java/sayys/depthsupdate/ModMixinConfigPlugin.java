@@ -83,15 +83,15 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return CELERITAS_LOADED;
         }
 
-        if (mixinClassName.contains(".masa.minihud.")) {
+        if (mixinClassName.contains(".mod.minihud.")) {
             return MINIHUD_LOADED;
         }
 
-        if (mixinClassName.contains(".sk89q.worldedit.")) {
+        if (mixinClassName.contains(".mod.worldedit.")) {
             return Loader.isModLoaded("worldedit");
         }
 
-        return false;
+        return true;
     }
 
     @Override

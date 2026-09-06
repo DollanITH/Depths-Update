@@ -21,6 +21,7 @@
     "MixinBiome",
     "MixinBlockFalling",
     "MixinBlockMatcher",
+    "MixinBlockPistonBase",
     "MixinBlockSkull",
     "MixinChunk",
     "MixinChunkCache",

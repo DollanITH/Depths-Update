@@ -172,7 +172,7 @@ public abstract class MixinAnvilChunkLoader {
         }
 
         // Pre-compute bedrock threshold to avoid random number in hot path
-        int bedrockThreshold = minY + random.nextInt(5);
+        int bedrockThreshold = minY + worldIn.rand.nextInt(5);
 
         // Fill from bottom to top with optimized processing
         for (int bx = 0; bx < 16; bx++) {
