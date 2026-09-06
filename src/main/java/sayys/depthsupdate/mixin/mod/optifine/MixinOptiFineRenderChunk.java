@@ -61,38 +61,4 @@ public class MixinOptiFineRenderChunk {
         } catch (Exception e) {}
     }
 
-    @Dynamic
-    @Shadow(remap = false)
-    private RenderChunk[] renderChunkNeighboursValid;
-
-    @Dynamic
-    @Shadow(remap = false)
-    private RenderChunk[] renderChunkNeighbours;
-
-    @Shadow
-    private World world;
-
-    @Shadow
-    public BlockPos getPosition() {
-        return this.position;
-    }
-
-    @Shadow
-    @Final
-    private BlockPos.MutableBlockPos position;
-
-    @Dynamic @Inject(method = "updateRenderChunkNeighboursValid()V", at = @At("HEAD"), remap = false)
-    private void onUpdateNeighbors(CallbackInfo cbi) {
-        if (!HeightManager.isExtended(this.world)) {
-            return;
-        }
-        int y = this.getPosition().getY();
-        int up = EnumFacing.UP.ordinal();
-        int down = EnumFacing.DOWN.ordinal();
-        this.renderChunkNeighboursValid[up] = this.renderChunkNeighbours[up].getPosition().getY() == y + 16 ?
-                this.renderChunkNeighbours[up] : null;
-        this.renderChunkNeighboursValid[down] = this.renderChunkNeighbours[down].getPosition().getY() == y - 16 ?
-                this.renderChunkNeighbours[down] : null;
-    }
-
 }

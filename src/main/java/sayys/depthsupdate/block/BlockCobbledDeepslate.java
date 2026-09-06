@@ -7,6 +7,7 @@ import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
+import sayys.depthsupdate.registry.StandaloneRegistry;
 
 public class BlockCobbledDeepslate extends Block {
     public BlockCobbledDeepslate() {
@@ -16,7 +17,7 @@ public class BlockCobbledDeepslate extends Block {
         this.setTranslationKey("cobbled_deepslate");
         this.setHardness(3.5F);
         this.setResistance(6.0F);
-        this.setSoundType(SoundType.STONE);
+        this.setSoundType(StandaloneRegistry.DEEPSLATE);
         this.setCreativeTab(CreativeTabs.BUILDING_BLOCKS);
     }
 

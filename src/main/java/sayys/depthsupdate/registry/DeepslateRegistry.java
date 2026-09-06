@@ -32,12 +32,12 @@ public class DeepslateRegistry {
     public static final Block deepslate = new BlockDeepslate();
     public static final Block cobbled_deepslate = new BlockCobbledDeepslate();
     public static final Block infested_deepslate = new BlockInfestedDeepslate();
-    public static final Block polished_deepslate = new BlockDeepslateVariant("polished_deepslate", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block chiseled_deepslate = new BlockDeepslateVariant("chiseled_deepslate", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block deepslate_bricks = new BlockDeepslateVariant("deepslate_bricks", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block deepslate_tiles = new BlockDeepslateVariant("deepslate_tiles", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block cracked_deepslate_bricks = new BlockDeepslateVariant("cracked_deepslate_bricks", 3.5F, 6.0F, SoundType.STONE);
-    public static final Block cracked_deepslate_tiles = new BlockDeepslateVariant("cracked_deepslate_tiles", 3.5F, 6.0F, SoundType.STONE);
+    public static final Block polished_deepslate = new BlockDeepslateVariant("polished_deepslate", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE);
+    public static final Block chiseled_deepslate = new BlockDeepslateVariant("chiseled_deepslate", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE);
+    public static final Block deepslate_bricks = new BlockDeepslateVariant("deepslate_bricks", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE_BRICKS);
+    public static final Block deepslate_tiles = new BlockDeepslateVariant("deepslate_tiles", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE_BRICKS);
+    public static final Block cracked_deepslate_bricks = new BlockDeepslateVariant("cracked_deepslate_bricks", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE_BRICKS);
+    public static final Block cracked_deepslate_tiles = new BlockDeepslateVariant("cracked_deepslate_tiles", 3.5F, 6.0F, StandaloneRegistry.DEEPSLATE_BRICKS);
     public static final Block cobbled_deepslate_stairs = new BlockModStairs("cobbled_deepslate_stairs", cobbled_deepslate.getDefaultState());
     public static final Block polished_deepslate_stairs = new BlockModStairs("polished_deepslate_stairs", polished_deepslate.getDefaultState());
     public static final Block deepslate_brick_stairs = new BlockModStairs("deepslate_brick_stairs", deepslate_bricks.getDefaultState());
@@ -52,8 +52,8 @@ public class DeepslateRegistry {
 
     public static final BlockModSlab.Double deepslate_slab_double = new BlockModSlab.Double("deepslate_slab_double", Material.ROCK);
     public static final BlockModSlab.Half deepslate_slab_half = new BlockModSlab.Half("deepslate_slab_half", Material.ROCK, deepslate_slab_double);
-    public static final Block calcite = new BlockDeepslateVariant("calcite", 0.75F, 0.75F, SoundType.STONE);
-    public static final Block tuff = new BlockDeepslateVariant("tuff", 1.5F, 6.0F, SoundType.STONE);
+    public static final Block calcite = new BlockDeepslateVariant("calcite", 0.75F, 0.75F, StandaloneRegistry.CALCITE);
+    public static final Block tuff = new BlockDeepslateVariant("tuff", 1.5F, 6.0F, StandaloneRegistry.TUFF);
     public static final Block smooth_basalt = new BlockDeepslateVariant("smooth_basalt", 1.25F, 4.2F, SoundType.STONE);
     public static Item  item_slab;
     // Ores

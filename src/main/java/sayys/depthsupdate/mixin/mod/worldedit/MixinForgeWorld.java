@@ -6,13 +6,11 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import sayys.depthsupdate.core.HeightManager;
 
 import java.lang.ref.WeakReference;
 
-@Mixin(value = ForgeWorld.class)
+@Mixin(ForgeWorld.class)
 public class MixinForgeWorld {
 
     @Shadow
@@ -20,15 +18,11 @@ public class MixinForgeWorld {
     private WeakReference<World> worldRef;
 
     /**
-     * @author 1
-     * @reason 1
+     * @author 9
+     * @reason 9
      */
     @Overwrite
     public int getMinY() {
-            if (HeightManager.isExtended(worldRef.get( ))) {
-                return HeightManager.getMinY(worldRef.get());
-            }
-
-            return 0;
-        }
+        return HeightManager.isExtended(worldRef.get()) ? HeightManager.getMinY(worldRef.get()) : 0;
+    }
 }
