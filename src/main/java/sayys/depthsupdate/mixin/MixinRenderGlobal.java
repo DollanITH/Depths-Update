@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexBuffer;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -16,9 +17,7 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -290,7 +289,7 @@ public abstract class MixinRenderGlobal {
             GlStateManager.color(0.0F, 0.0F, 0.0F);
             double d0 = this.mc.player.getPositionEyes(partialTicks).y;
 
-            if (d0 < HeightManager.getMinY(world))
+            if (d0 < HeightManager.getMinY(world) - 16.0D)
             {
                 GlStateManager.pushMatrix();
                 GlStateManager.translate(0.0F, 12.0F, 0.0F);
