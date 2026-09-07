@@ -6,6 +6,7 @@
   "client": [
     "IMixinViewFrustum",
     "MixinDebugRendererChunkBorder",
+    "MixinEntityRenderer",
     "MixinGuiOverlayDebug",
     "MixinNetHandlerPlayClient",
     "MixinRenderGlobal",

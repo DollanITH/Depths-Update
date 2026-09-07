@@ -75,6 +75,16 @@ public abstract class MixinRenderGlobal {
     @Shadow
     protected abstract void renderSkyEnd();
 
+    @Shadow
+    @Final
+    private static ResourceLocation CLOUDS_TEXTURES;
+
+    @Shadow
+    private int cloudTickCounter;
+
+    @Shadow
+    protected abstract void renderCloudsFancy(float partialTicks, int pass, double x, double y, double z);
+
     /**
      * Fixes entity rendering in extended-height worlds.
      *
@@ -121,7 +131,7 @@ public abstract class MixinRenderGlobal {
         }
     }
 
-    @Inject(method = "renderSky(FI)V", at = @At(value = "RETURN"), cancellable = true)
+    @Inject(method = "renderSky(FI)V", at = @At(value = "HEAD"), cancellable = true)
     private void getVoidHeight(float partialTicks, int pass, CallbackInfo ci) {
         net.minecraftforge.client.IRenderHandler renderer = this.world.provider.getSkyRenderer();
         if (renderer != null)
@@ -287,9 +297,9 @@ public abstract class MixinRenderGlobal {
             GlStateManager.popMatrix();
             GlStateManager.disableTexture2D();
             GlStateManager.color(0.0F, 0.0F, 0.0F);
-            double d0 = this.mc.player.getPositionEyes(partialTicks).y;
+            double d0 = this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon();
 
-            if (d0 < HeightManager.getMinY(world) - 16.0D)
+            if (d0 < 0.0D)
             {
                 GlStateManager.pushMatrix();
                 GlStateManager.translate(0.0F, 12.0F, 0.0F);
@@ -309,6 +319,32 @@ public abstract class MixinRenderGlobal {
                 }
 
                 GlStateManager.popMatrix();
+
+                if (d0 < HeightManager.getMinY(world)) {
+                    float f_height = -((float) (d0 + 58.0 - HeightManager.getMinY(world)));
+                    bufferbuilder.begin(7, DefaultVertexFormats.POSITION_COLOR);
+                    bufferbuilder.pos(-1.0, f_height, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, f_height, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, f_height, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, f_height, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, f_height, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, f_height, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, f_height, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, f_height, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(-1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, 1.0).color(0, 0, 0, 255).endVertex();
+                    bufferbuilder.pos(1.0, -1.0, -1.0).color(0, 0, 0, 255).endVertex();
+                    tessellator.draw();
+                }
             }
 
             if (this.world.provider.isSkyColored())
@@ -321,7 +357,7 @@ public abstract class MixinRenderGlobal {
             }
 
             GlStateManager.pushMatrix();
-            GlStateManager.translate(0.0F, -((float)(d0 - 16.0)), 0.0F);
+            GlStateManager.translate(0.0F, -((float)(d0 - this.world.getHorizon() - 16.0)), 0.0F);
             GlStateManager.callList(this.glSkyList2);
             GlStateManager.popMatrix();
             GlStateManager.enableTexture2D();
@@ -329,4 +365,5 @@ public abstract class MixinRenderGlobal {
         }
         ci.cancel();
     }
+
 }
