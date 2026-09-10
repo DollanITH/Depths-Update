@@ -51,12 +51,12 @@ public class DepthsUpdateConfig {
         @Config.Name("Global Minimum Y")
         @Config.Comment("The minimum Y coordinate for extended dimensions. Must be a multiple of 16.")
         @Config.RangeInt(min = -2048, max = 0)
-        public int globalMinY = -48;
+        public int globalMinY = -64;
 
         @Config.Name("Global Maximum Y")
         @Config.Comment("The maximum Y coordinate for extended dimensions. Must be a multiple of 16.")
         @Config.RangeInt(min = 256, max = 2048)
-        public int globalMaxY = 352;
+        public int globalMaxY = 384;
 
         @Config.Name("Extended Dimensions")
         @Config.Comment("Dimension IDs to apply height extension to. Default: [0] (Overworld only).")
@@ -80,11 +80,11 @@ public class DepthsUpdateConfig {
 
         @Config.Name("Lava Level")
         @Config.Comment("The Y level at which underground air is replaced with lava.")
-        public int lavaLevel = -37;
+        public int lavaLevel = -53;
 
         @Config.Name("Void Damage Level")
         @Config.Comment("The Y level at which players start taking void damage.")
-        public int voidDamageLevel = -92;
+        public int voidDamageLevel = -128;
 
         @Config.Name("Convert Old Worlds")
         @Config.Comment("When loading chunks from a non-extended world, fill below Y=0 with stone.")
