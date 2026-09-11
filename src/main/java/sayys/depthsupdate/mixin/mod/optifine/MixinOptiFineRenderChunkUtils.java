@@ -6,11 +6,9 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.optifine.util.RenderChunkUtils;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = RenderChunkUtils.class, remap = false)
@@ -37,16 +35,15 @@ public class MixinOptiFineRenderChunkUtils {
      * @author sayys
      * @reason Fix ArrayIndexOutOfBoundsException by correctly mapping Y coords to storage array indices.
      */
-    @Inject(method = "getCountBlocks", at = @At(value = "HEAD"), cancellable = true)
-    private static void getCountBlocks(RenderChunk renderChunk, CallbackInfoReturnable<Integer> cir) {
+    @Overwrite
+    public static int getCountBlocks(RenderChunk renderChunk) {
         initReflection();
 
         try {
             Chunk chunk = (Chunk) getChunkMethod.invoke(renderChunk);
 
             if (chunk == null) {
-                cir.setReturnValue(0);
-                cir.cancel();
+                return 0;
             }
 
             ExtendedBlockStorage[] storages = null;
@@ -55,8 +52,7 @@ public class MixinOptiFineRenderChunkUtils {
             }
 
             if (storages == null) {
-                cir.setReturnValue(0);
-                cir.cancel();
+                return 0;
             }
 
             int y = renderChunk.getPosition().getY();
@@ -66,14 +62,11 @@ public class MixinOptiFineRenderChunkUtils {
                 ExtendedBlockStorage ebs = storages[index];
 
                 if (ebs != null) {
-                    cir.setReturnValue(((EBSAccessor)ebs).depthsupdate$blockRefCount());
-                    cir.cancel();
+                    return (((IMixinExtendedBlockStorage)ebs).depthsupdate$blockRefCount());
                 }
             }
         } catch (Exception e) {
-            return;
         }
-
-        cir.setReturnValue(0);
+        return 0;
     }
 }

@@ -15,13 +15,15 @@
     "nothirium.MixinNothiriumDirectionUp",
     "nothirium.MixinNothiriumRenderChunk",
     "nothirium.MixinNothiriumWorldUtil",
+    "optifine.MixinChunkVisibility",
     "optifine.MixinOptiFineRenderChunk",
     "optifine.MixinOptiFineRenderChunkUtils",
-    "optifine.MixinOptiFineViewFrustum"
+    "optifine.MixinOptiFineViewFrustum",
+    "optifine.MixinRenderGlobalOptifine_E"
   ],
   "mixins": [
-    "worldedit.MixinForgeWorld",
-    "optifine.EBSAccessor"
+    "optifine.IMixinExtendedBlockStorage",
+    "worldedit.MixinForgeWorld"
   ],
   "server": [],
   "setSourceFile": true,
