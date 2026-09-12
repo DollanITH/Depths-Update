@@ -1,61 +1,28 @@
 package sayys.depthsupdate.mixin.mod.nothirium;
 
-import meldexun.nothirium.api.renderer.chunk.IChunkRenderer;
-import meldexun.nothirium.api.renderer.chunk.IRenderChunkDispatcher;
-import meldexun.nothirium.api.renderer.chunk.IRenderChunkProvider;
 import meldexun.nothirium.mc.renderer.ChunkRenderManager;
-import meldexun.nothirium.mc.renderer.chunk.RenderChunkDispatcher;
-import meldexun.nothirium.mc.renderer.chunk.RenderChunkProvider;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
-import org.spongepowered.asm.mixin.Shadow;
-
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = ChunkRenderManager.class, remap = false)
 public class MixinNothiriumChunkRenderManager {
-    @Shadow
-    private static IChunkRenderer<?> chunkRenderer;
-
-    @Shadow
-    private static IRenderChunkProvider<?> renderChunkProvider;
-
-    @Shadow
-    private static IRenderChunkDispatcher taskDispatcher;
-
-    @Shadow
-    private static IChunkRenderer<?> createChunkRenderer(IChunkRenderer<?> oldChunkRenderer) {
-        throw new AssertionError();
-    }
 
     /**
      * @author __sayys
-     * @reason Cap Y render distance to world height instead of using cubic allocation.
+     * @reason Cap Y render distance to world height; keep Nothirium's OptiFine
+     *         routing (ASM-patched createChunkRenderer) intact in the original body.
      */
-    @Overwrite
-    public static void allChanged() {
-        chunkRenderer = createChunkRenderer(chunkRenderer);
-
-        if (renderChunkProvider != null) {
-            renderChunkProvider.releaseBuffers();
-        } else {
-            renderChunkProvider = new RenderChunkProvider();
-        }
-
-        if (taskDispatcher == null) {
-            taskDispatcher = new RenderChunkDispatcher();
-        }
-
+    @ModifyArg(method = "allChanged",
+            at = @At(value = "INVOKE",
+                    target = "Lmeldexun/nothirium/api/renderer/chunk/IRenderChunkProvider;init(III)V"),
+            index = 1)
+    private static int depthsupdate$capRenderDistanceY(int renderDistance) {
         Minecraft mc = Minecraft.getMinecraft();
-        int renderDistance = mc.gameSettings.renderDistanceChunks;
-
         HeightContext ctx = mc.world != null ? HeightManager.get(mc.world) : HeightContext.VANILLA;
-        int maxSections = ctx.totalStorageSections();
-        int renderDistanceY = Math.min(renderDistance, (maxSections + 1) / 2);
-
-        renderChunkProvider.init(renderDistance, renderDistanceY, renderDistance);
-        chunkRenderer.init(renderDistance);
+        return Math.min(renderDistance, (ctx.totalStorageSections() + 1) / 2);
     }
 }

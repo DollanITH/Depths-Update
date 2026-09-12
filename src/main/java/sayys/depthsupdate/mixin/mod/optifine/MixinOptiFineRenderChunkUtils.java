@@ -4,14 +4,14 @@ import java.lang.reflect.Method;
 import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
-import net.optifine.util.RenderChunkUtils;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Unique;
 
 import sayys.depthsupdate.core.HeightManager;
+import sayys.depthsupdate.mixin.IMixinExtendedBlockStorage;
 
-@Mixin(value = RenderChunkUtils.class, remap = false)
+@Mixin(targets = "net.optifine.util.RenderChunkUtils", remap = false)
 public class MixinOptiFineRenderChunkUtils {
     @Unique
     private static Method getChunkMethod;
@@ -28,6 +28,7 @@ public class MixinOptiFineRenderChunkUtils {
         try {
             getChunkMethod = RenderChunk.class.getDeclaredMethod("getChunk");
             getChunkMethod.setAccessible(true);
+
         } catch (Exception e) {}
     }
 
@@ -42,18 +43,11 @@ public class MixinOptiFineRenderChunkUtils {
         try {
             Chunk chunk = (Chunk) getChunkMethod.invoke(renderChunk);
 
-            if (chunk == null) {
-                return 0;
-            }
+            if (chunk == null) return 0;
 
-            ExtendedBlockStorage[] storages = null;
-            if (chunk != null) {
-                storages = chunk.getBlockStorageArray();
-            }
+            ExtendedBlockStorage[] storages = chunk.getBlockStorageArray();
 
-            if (storages == null) {
-                return 0;
-            }
+            if (storages == null) return 0;
 
             int y = renderChunk.getPosition().getY();
             int index = HeightManager.getMaxContext().toStorageIndex(y);
@@ -62,11 +56,11 @@ public class MixinOptiFineRenderChunkUtils {
                 ExtendedBlockStorage ebs = storages[index];
 
                 if (ebs != null) {
-                    return (((IMixinExtendedBlockStorage)ebs).depthsupdate$blockRefCount());
+                    return ((IMixinExtendedBlockStorage) ebs).depthsupdate$blockRefCount();
                 }
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
+
         return 0;
     }
 }

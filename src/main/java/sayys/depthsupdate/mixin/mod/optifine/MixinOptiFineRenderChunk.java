@@ -1,22 +1,14 @@
 package sayys.depthsupdate.mixin.mod.optifine;
 
+import java.lang.reflect.Field;
 import net.minecraft.client.renderer.chunk.RenderChunk;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.optifine.render.AabbFrame;
-import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import sayys.depthsupdate.core.HeightManager;
 
-import java.lang.reflect.Field;
-
-@Mixin(value = RenderChunk.class, remap = false)
+@Mixin(RenderChunk.class)
 public class MixinOptiFineRenderChunk {
     @Unique
     private static Field neighboursUpdatedField;
@@ -47,7 +39,7 @@ public class MixinOptiFineRenderChunk {
         }
     }
 
-    @Inject(method = "setPosition", at = @At("HEAD"))
+    @Inject(method = "setPosition", at = @At("TAIL"))
     private void depthsupdate$resetNeighbourFlags(int x, int y, int z, CallbackInfo ci) {
         if (reflectionFailed) return;
 
@@ -60,5 +52,4 @@ public class MixinOptiFineRenderChunk {
             offset16UpdatedField.setBoolean(this, false);
         } catch (Exception e) {}
     }
-
 }

@@ -18,6 +18,7 @@
     "client.MixinModelPlayer"
   ],
   "mixins": [
+    "IMixinExtendedBlockStorage",
     "MixinAnvilChunkLoader",
     "MixinBiome",
     "MixinBlockFalling",
