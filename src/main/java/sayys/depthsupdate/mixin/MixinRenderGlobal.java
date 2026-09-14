@@ -33,6 +33,8 @@ public class MixinRenderGlobal {
     @Shadow
     private WorldClient world;
 
+    private static int depthsupdate$dbgCount;
+
     /**
      * Fixes entity rendering in extended-height worlds.
      * <p>
@@ -83,24 +85,15 @@ public class MixinRenderGlobal {
     private boolean depthsupdate$shouldSkipVoidBox(float partialTicks) {
         HeightContext ctx = HeightManager.get(world);
         if (!ctx.isExtended()) return false;
-        return this.mc.player.getPositionEyes(partialTicks).y >= ctx.minY();
+        return this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon() < ctx.minY();
     }
 
     // 根据 f19 反推玩家是否已在 minY 之上，决定是否隐藏大黑盒
-    @ModifyVariable(method = "renderSky(FI)V", at = @At("STORE"), name = "f19", ordinal = 12)
+    @ModifyVariable(method = "renderSky(FI)V", at = @At(value = "STORE", ordinal = 0), name = "f19")
     public float depthsupdate$adjustVoidBoxHeight(float f19) {
         HeightContext ctx = HeightManager.get(world);
-        if (!ctx.isExtended()) return f19;   // 普通世界：原版行为
-
+        if (ctx == null || !ctx.isExtended()) return f19;
         int minY = ctx.minY();
-        // f19 = -(d0+65)，d0 = eyeY - getHorizon()(=63)
-        // 所以 eyeY >= minY  ⟺  f19 <= -(minY+2)
-        if (f19 <= -(minY + 2)) {
-            // 玩家在 minY 之上：把大黑盒退化为零高度 → 不可见；
-            // begin/draw 仍正常配对，共享缓冲区状态不受干扰，区块线程不会崩
-            return -1.0F;
-        }
-        // 玩家在 minY 之下：正常渲染 + 原来的位置调整
         return f19 - (float) minY;
     }
 
