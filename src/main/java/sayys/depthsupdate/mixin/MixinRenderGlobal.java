@@ -90,11 +90,11 @@ public class MixinRenderGlobal {
 
     // 根据 f19 反推玩家是否已在 minY 之上，决定是否隐藏大黑盒
     @ModifyVariable(method = "renderSky(FI)V", at = @At(value = "STORE", ordinal = 0), name = "f19")
-    public float depthsupdate$adjustVoidBoxHeight(float f19) {
+    public float depthsupdate$adjustVoidBoxHeight(float f19, @Local(argsOnly = true) float partialTicks) {
         HeightContext ctx = HeightManager.get(world);
         if (ctx == null || !ctx.isExtended()) return f19;
         int minY = ctx.minY();
-        return f19 - (float) minY;
+        return -((float) (this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon() + 58.0 - HeightManager.getMinY(world)));
     }
 
     @WrapWithCondition(method = "renderSky(FI)V",
