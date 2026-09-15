@@ -89,7 +89,7 @@ public class MixinRenderGlobal {
         if (!ctx.isExtended()) {
             return f19;
         }
-        return -((float) (depthsupdate$voidBoxD0(partialTicks) + 58.0 - (float) ctx.minY()));
+        return -((float) (depthsupdate$voidBoxD0(partialTicks) + 65.0 - (float) ctx.minY()));
     }
 
     @WrapWithCondition(
