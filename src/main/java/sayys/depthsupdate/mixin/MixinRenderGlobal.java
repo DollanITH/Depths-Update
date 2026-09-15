@@ -1,12 +1,11 @@
 package sayys.depthsupdate.mixin;
 
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.chunk.RenderChunk;
-import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -81,47 +80,39 @@ public class MixinRenderGlobal {
         }
     }
 
-    @Unique
-    private boolean depthsupdate$shouldSkipVoidBox(float partialTicks) {
-        HeightContext ctx = HeightManager.get(world);
-        if (!ctx.isExtended()) return false;
-        return this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon() < ctx.minY();
-    }
-
-    // 根据 f19 反推玩家是否已在 minY 之上，决定是否隐藏大黑盒
-    @ModifyVariable(method = "renderSky(FI)V", at = @At(value = "STORE", ordinal = 0), name = "f19")
+    @ModifyVariable(
+            method = "renderSky(FI)V",
+            slice = @Slice(from = @At(value = "CONSTANT", args = "doubleValue=65.0D")),
+            at = @At(value = "STORE", ordinal = 0),
+            name = "f19",
+            require = 1)
     public float depthsupdate$adjustVoidBoxHeight(float f19, @Local(argsOnly = true) float partialTicks) {
         HeightContext ctx = HeightManager.get(world);
-        if (ctx == null || !ctx.isExtended()) return f19;
-        int minY = ctx.minY();
-        return -((float) (this.mc.player.getPositionEyes(partialTicks).y - this.world.getHorizon() + 58.0 - HeightManager.getMinY(world)));
-    }
-
-    @WrapWithCondition(method = "renderSky(FI)V",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/BufferBuilder;begin(ILnet/minecraft/client/renderer/vertex/VertexFormat;)V",
-                    ordinal = 3))
-    public boolean depthsupdate$wrapVoidBoxBegin(
-            BufferBuilder buffer, int glMode, VertexFormat format,
-            @Local(argsOnly = true) float partialTicks) {
-        if (depthsupdate$shouldSkipVoidBox(partialTicks)) {
-            buffer.begin(glMode, format);  // 手动 begin，让后面的 .pos().color() 正常写入
-            return false;               // 跳过原 begin
+        if (!ctx.isExtended()) {
+            return f19;
         }
-        return true;                    // 原版：原 begin 正常执行
+        return -((float) (depthsupdate$voidBoxD0(partialTicks) + 58.0 - (float) ctx.minY()));
     }
 
-    @WrapWithCondition(method = "renderSky(FI)V",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/renderer/Tessellator;draw()V",
-                    ordinal = 3))
-    public boolean depthsupdate$wrapVoidBoxDraw(
-            Tessellator tessellator,
+    @WrapWithCondition(
+            method = "renderSky(FI)V",
+            slice = @Slice(from = @At(value = "CONSTANT", args = "doubleValue=65.0D")),
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/Tessellator;draw()V"),
+            require = 1)
+    public boolean depthsupdate$skipVoidBoxDraw(Tessellator tessellator,
             @Local(argsOnly = true) float partialTicks) {
-        if (depthsupdate$shouldSkipVoidBox(partialTicks)) {
-            tessellator.getBuffer().finishDrawing();  // 释放构建态，不画
-            return false;
+        HeightContext ctx = HeightManager.get(world);
+        if (!ctx.isExtended()) {
+            return true; // 原版世界：照常绘制
+        }
+        if (depthsupdate$voidBoxD0(partialTicks) > ctx.minY()) {
+            tessellator.getBuffer().finishDrawing(); // 丢弃已写入的盒体，复位 buffer
+            return false;                            // 跳过原 draw
         }
         return true;
+    }
+
+    private double depthsupdate$voidBoxD0(float partialTicks) {
+        return mc.player.getPositionEyes(partialTicks).y - world.getHorizon();
     }
 }
