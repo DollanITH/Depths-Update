@@ -1,6 +1,6 @@
 package sayys.depthsupdate.mixin;
 
-import com.llamalad7.mixinextras.injector.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
@@ -31,8 +31,6 @@ public class MixinRenderGlobal {
 
     @Shadow
     private WorldClient world;
-
-    private static int depthsupdate$dbgCount;
 
     /**
      * Fixes entity rendering in extended-height worlds.
@@ -112,6 +110,7 @@ public class MixinRenderGlobal {
         return true;
     }
 
+    @Unique
     private double depthsupdate$voidBoxD0(float partialTicks) {
         return mc.player.getPositionEyes(partialTicks).y - world.getHorizon();
     }

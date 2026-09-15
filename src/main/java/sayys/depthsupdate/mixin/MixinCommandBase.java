@@ -26,59 +26,28 @@ package sayys.depthsupdate.mixin;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.command.NumberInvalidException;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
-
-import java.lang.ref.WeakReference;
-
-import javax.annotation.Nonnull;
 
 @Mixin(CommandBase.class)
 public class MixinCommandBase {
 
-    //I hope there are no threads involved...
-    @Unique
-    @Nonnull private static WeakReference<World> commandWorld = new WeakReference<>(null);
-
-    //get command sender, can't fail (inject at HEAD)
-    @Inject(method = "parseBlockPos", at = @At(value = "HEAD"))
-    private static void parseBlockPosPre(ICommandSender sender, String[] args, int startIndex, boolean centerBlock, CallbackInfoReturnable<?> cbi) {
-        commandWorld = new WeakReference<>(sender.getEntityWorld());
-    }
-
-    //modify parseDouble min argument
-    @ModifyArg(method = "parseBlockPos",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/command/CommandBase;parseDouble(DLjava/lang/String;IIZ)D", ordinal = 1),
-            index = 2)
-    private static int getMinY(int original) {
-        World world = commandWorld.get();
-        if (world == null) {
-            return original;
-        }
-        if (!HeightManager.isExtended(world.provider.getDimension())) {
-            return original;
-        }
-        return HeightManager.getMinY(world);
-    }
-
-    //modify parseDouble max argument
-    @ModifyArg(method = "parseBlockPos",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/command/CommandBase;parseDouble(DLjava/lang/String;IIZ)D", ordinal = 1),
-            index = 3)
-    private static int getMaxY(int original) {
-        World world = commandWorld.get();
-        if (world == null) {
-            return original;
-        }
-        if (!HeightManager.isExtended(world.provider.getDimension())) {
-            return original;
-        }
-        return HeightManager.getMaxY(world);
+    @Redirect(
+            method = "parseBlockPos",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/command/CommandBase;parseDouble(DLjava/lang/String;IIZ)D",
+                    ordinal = 1))
+    private static double depthsupdate$parseBlockPosY(
+            double base, String input, int min, int max, boolean centerBlock,
+            ICommandSender sender) throws NumberInvalidException {
+        World world = sender.getEntityWorld();
+        HeightContext ctx = HeightManager.get(world);
+        return CommandBase.parseDouble(base, input, ctx.minY(), ctx.maxY(), centerBlock);
     }
 }
