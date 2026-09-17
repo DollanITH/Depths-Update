@@ -19,6 +19,7 @@
     "optifine.MixinOptiFineViewFrustum"
   ],
   "mixins": [
+    "extrautils2.MixinItemSelectionWand",
     "optifine.MixinOptiFineRenderChunkUtils",
     "worldedit.MixinForgeWorld"
   ],

@@ -20,7 +20,7 @@ public class MixinGuiOverlayDebug {
             slice = @Slice(
                     from = @At(
                             value = "INVOKE",
-                            target = "Lnet/minecraft/world/World;isBlockLoaded(Lnet/minecraft/util/math/BlockPos;)Z"
+                            target = "Lnet/minecraft/client/Minecraft;isReducedDebug()Z"
                     ),
                     to = @At(
                             value = "INVOKE",
