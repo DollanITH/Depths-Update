@@ -95,6 +95,10 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return Loader.isModLoaded("extrautils2");
         }
 
+        if (mixinClassName.contains(".mod.journeymap.")) {
+            return Loader.isModLoaded("journeymap");
+        }
+
         return true;
     }
 

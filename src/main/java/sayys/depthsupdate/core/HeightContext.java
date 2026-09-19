@@ -15,7 +15,7 @@ import sayys.depthsupdate.api.HeightInfo;
  */
 public final class HeightContext implements HeightInfo {
     /** Standard vanilla 1.12.2 context: Y [0, 256), 16 sections. */
-    public static final HeightContext VANILLA = new HeightContext(0, 256, -54, -64, 63);
+    public static final HeightContext VANILLA = new HeightContext(0, 256, 11, -64, 63);
 
     private final int minY;
     private final int maxY;

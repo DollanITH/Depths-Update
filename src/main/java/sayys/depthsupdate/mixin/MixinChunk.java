@@ -705,10 +705,13 @@ public abstract class MixinChunk {
 
         if (y > i) {
             j = y;
-        }
-
-        while (j > minY && this.getBlockLightOpacity(x, j - 1, z) == 0) {
-            --j;
+            // New block above old surface. Don't scan down through air below it -
+            // in extended-Y worlds (minY=-64) this would collapse heightMap back
+            // to minY for manually-placed blocks. The block at y is the new surface.
+        } else {
+            while (j > minY && this.getBlockLightOpacity(x, j - 1, z) == 0) {
+                --j;
+            }
         }
 
         if (j != i) {

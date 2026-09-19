@@ -17,11 +17,13 @@
     "nothirium.MixinNothiriumWorldUtil",
     "optifine.MixinOptiFineRenderChunk",
     "optifine.MixinOptiFineShaders",
-    "optifine.MixinOptiFineViewFrustum"
+    "optifine.MixinOptiFineRenderChunkUtils",
+    "optifine.MixinOptiFineViewFrustum",
+    "journeymap.MixinJourneyMapPlayerData",
+    "journeymap.MixinJourneyMapWorldHeightHelper"
   ],
   "mixins": [
     "extrautils2.MixinItemSelectionWand",
-    "optifine.MixinOptiFineRenderChunkUtils",
     "worldedit.MixinForgeWorld"
   ],
   "server": [],
