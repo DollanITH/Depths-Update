@@ -44,6 +44,7 @@ dependencies {
     compileOnly("curse.maven:renderlib-624967:6461209")
     compileOnly("curse.maven:nothirium-624960:7441674")
     modImplementation("curse.maven:realistic-terrain-generation-plus-981628:5466561")
+    modImplementation("curse.maven:extra-utilities-225561:2678374")
     compileOnly("maven.modrinth:UMxybHE8:Ilot9zRz")
 
     // modImplementation("curse.maven:reid-629017:7571353")

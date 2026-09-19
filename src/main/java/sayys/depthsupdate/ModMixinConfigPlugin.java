@@ -91,6 +91,10 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return Loader.isModLoaded("worldedit");
         }
 
+        if (mixinClassName.contains(".mod.extrautils2.")) {
+            return Loader.isModLoaded("extrautils2");
+        }
+
         return true;
     }
 

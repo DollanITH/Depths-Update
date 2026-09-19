@@ -171,14 +171,11 @@ public abstract class MixinAnvilChunkLoader {
             storageIndices[by - minY] = ctx.toStorageIndex(by);
         }
 
-        // Pre-compute bedrock threshold to avoid random number in hot path
-        int bedrockThreshold = minY + worldIn.rand.nextInt(5);
-
         // Fill from bottom to top with optimized processing
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
                 depthsupdate$processColumn(bx, bz, storageArrays, hasSkyLight, minY,
-                    stone, deepslate, bedrock, air, random, bedrockThreshold,
+                    stone, deepslate, bedrock, air, random,
                     fullDeepslateY, deepslateMaxY, transitionRange, ctx, worldIn);
             }
         }
@@ -193,9 +190,13 @@ public abstract class MixinAnvilChunkLoader {
                                          boolean hasSkyLight, int minY,
                                          IBlockState stone, IBlockState deepslate,
                                          IBlockState bedrock, IBlockState air,
-                                         java.util.Random random, int bedrockThreshold,
+                                         java.util.Random random,
                                          int fullDeepSlateY, int deepslateMaxY, int transitionRange,
                                          HeightContext ctx, World worldIn) {
+
+        // Per-column bedrock height threshold (mimics vanilla per-column randomization)
+        // Uses the chunk-seeded random so it is deterministic per chunk and varies per column
+        int bedrockThreshold = minY + random.nextInt(5);
 
         // Process bedrock replacement zone (Y=0-6)
         for (int by = Math.max(0, minY); by <= 6; by++) {
@@ -232,14 +233,9 @@ public abstract class MixinAnvilChunkLoader {
     /**
      * Set block if condition is met - reduces code duplication
      */
-    @FunctionalInterface
-    private interface BlockCondition {
-        boolean test(ExtendedBlockStorage section);
-    }
-
     @Unique
     private void depthsupdate$setBlockIf(int bx, int bz, ExtendedBlockStorage[] storageArrays,
-                                         int y, boolean hasSkyLight, BlockCondition condition,
+                                         int y, boolean hasSkyLight, java.util.function.Predicate<ExtendedBlockStorage> condition,
                                          IBlockState newState, HeightContext ctx) {
         int storageIdx = ctx.toStorageIndex(y);
         if (storageIdx < 0 || storageIdx >= storageArrays.length) return;
@@ -587,55 +583,6 @@ public abstract class MixinAnvilChunkLoader {
         }
     }
 
-    /**
-     * Performance optimized bulk liquid processor
-     */
-    @Unique
-    private static final class LiquidBulkProcessor {
-        private static final int BATCH_SIZE = 64;
-        private static final java.util.Queue<ChunkUpdateTask> pendingUpdates = new java.util.concurrent.ConcurrentLinkedQueue<>();
-
-        public static void scheduleLiquidUpdate(Chunk chunk, int x, int z) {
-            pendingUpdates.add(new ChunkUpdateTask(chunk, x, z));
-            if (pendingUpdates.size() >= BATCH_SIZE) {
-                processBatch();
-            }
-        }
-
-        private static void processBatch() {
-            // Process queued updates in bulk to improve performance
-            java.util.List<ChunkUpdateTask> batch = new java.util.ArrayList<>();
-            while (!pendingUpdates.isEmpty() && batch.size() < BATCH_SIZE) {
-                ChunkUpdateTask task = pendingUpdates.poll();
-                if (task != null) {
-                    batch.add(task);
-                }
-            }
-
-            // Process the batch
-            for (ChunkUpdateTask task : batch) {
-                if (task.chunk != null) {
-                    // Trigger chunk updates for liquids
-                    task.chunk.generateSkylightMap();
-                }
-            }
-        }
-
-        /**
-         * Task class for bulk processing
-         */
-        private static class ChunkUpdateTask {
-            final Chunk chunk;
-            final int x;
-            final int z;
-
-            ChunkUpdateTask(Chunk chunk, int x, int z) {
-                this.chunk = chunk;
-                this.x = x;
-                this.z = z;
-            }
-        }
-    }
 
     /**
      * 检查区块是否有y<0的方块
