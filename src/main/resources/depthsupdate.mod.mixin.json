@@ -16,6 +16,7 @@
     "nothirium.MixinNothiriumRenderChunk",
     "nothirium.MixinNothiriumWorldUtil",
     "optifine.MixinOptiFineRenderChunk",
+    "optifine.MixinOptiFineShaders",
     "optifine.MixinOptiFineViewFrustum"
   ],
   "mixins": [
