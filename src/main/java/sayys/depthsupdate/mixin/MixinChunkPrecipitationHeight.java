@@ -2,6 +2,7 @@ package sayys.depthsupdate.mixin;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -9,14 +10,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(Chunk.class)
+@Mixin(value = Chunk.class, priority = 1001)
 public abstract class MixinChunkPrecipitationHeight {
 
+    @Final
     @Shadow
     private int[] heightMap;
 
+    @Final
     @Shadow
-    public net.minecraft.world.World world;
+    private net.minecraft.world.World world;
 
     @Inject(method = "getPrecipitationHeight", at = @At("HEAD"), cancellable = true, remap = false)
     private void depthsupdate$getPrecipitationHeight(BlockPos pos, CallbackInfoReturnable<BlockPos> cir) {
