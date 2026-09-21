@@ -21,7 +21,7 @@ public abstract class MixinChunkPrecipitationHeight {
     @Shadow
     private net.minecraft.world.World world;
 
-    @Inject(method = "getPrecipitationHeight", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "getPrecipitationHeight(Lnet/minecraft/util/math/BlockPos;)Lnet/minecraft/util/math/BlockPos;", at = @At("HEAD"), cancellable = true, remap = false)
     private void depthsupdate$getPrecipitationHeight(BlockPos pos, CallbackInfoReturnable<BlockPos> cir) {
         if (!HeightManager.isExtended(this.world)) {
             return;
