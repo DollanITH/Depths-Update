@@ -9,6 +9,10 @@
     "celeritas.MixinCeleritasWorldSlice",
     "celeritas.MixinClonedChunkSection",
     "celeritas.MixinVintageRenderSectionManager",
+    "journeymap.MixinJourneyMapChunkMonitorHandler",
+    "journeymap.MixinJourneyMapCoreProperties",
+    "journeymap.MixinJourneyMapJmBlockAccess",
+    "journeymap.MixinJourneyMapPlayerData",
     "minihud.RenderHandlerMixin",
     "nothirium.MixinNothiriumChunkRenderManager",
     "nothirium.MixinNothiriumDirectionDown",
@@ -16,11 +20,9 @@
     "nothirium.MixinNothiriumRenderChunk",
     "nothirium.MixinNothiriumWorldUtil",
     "optifine.MixinOptiFineRenderChunk",
-    "optifine.MixinOptiFineShaders",
     "optifine.MixinOptiFineRenderChunkUtils",
-    "optifine.MixinOptiFineViewFrustum",
-    "journeymap.MixinJourneyMapPlayerData",
-    "journeymap.MixinJourneyMapWorldHeightHelper"
+    "optifine.MixinOptiFineShaders",
+    "optifine.MixinOptiFineViewFrustum"
   ],
   "mixins": [
     "extrautils2.MixinItemSelectionWand",

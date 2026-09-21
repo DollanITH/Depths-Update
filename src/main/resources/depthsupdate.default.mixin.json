@@ -26,6 +26,7 @@
     "MixinBlockPistonBase",
     "MixinBlockSkull",
     "MixinChunk",
+    "MixinChunkPrecipitationHeight",
     "MixinChunkCache",
     "MixinChunkGeneratorOverworld",
     "MixinChunkPrimer",
