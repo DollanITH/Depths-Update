@@ -13,6 +13,7 @@
     "journeymap.MixinJourneyMapCoreProperties",
     "journeymap.MixinJourneyMapJmBlockAccess",
     "journeymap.MixinJourneyMapPlayerData",
+    "journeymap.MixinJourneyMapSurfaceRenderer",
     "minihud.RenderHandlerMixin",
     "nothirium.MixinNothiriumChunkRenderManager",
     "nothirium.MixinNothiriumDirectionDown",

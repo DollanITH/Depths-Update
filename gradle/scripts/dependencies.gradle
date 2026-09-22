@@ -36,7 +36,7 @@ dependencies {
         compileOnly "com.cleanroommc:lwjglx:1.0.0"
     }
 
-    modImplementation("curse.maven:journeymap-32274:8880583")
+    modImplementation("curse.maven:journeymap-32274:8923612")
     modImplementation("curse.maven:fugue-1005815:7663573")
     modImplementation("curse.maven:had-enough-items-557549:7515497")
     modImplementation("curse.maven:fluidloggedapi-485654:7581579")

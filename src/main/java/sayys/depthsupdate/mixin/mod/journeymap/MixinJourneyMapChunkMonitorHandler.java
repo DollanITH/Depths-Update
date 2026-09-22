@@ -10,7 +10,7 @@ import journeymap.client.event.handlers.ChunkMonitorHandler;
 import journeymap.client.model.chunk.ChunkMD;
 import journeymap.client.task.multi.MapPlayerTask;
 
-@Mixin(value = ChunkMonitorHandler.class, priority = 1001)
+@Mixin(value = ChunkMonitorHandler.class, priority = 2500)
 public abstract class MixinJourneyMapChunkMonitorHandler {
 
     @Inject(method = "notifyBlockUpdate(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/block/state/IBlockState;I)V", at = @At("HEAD"), remap = false)

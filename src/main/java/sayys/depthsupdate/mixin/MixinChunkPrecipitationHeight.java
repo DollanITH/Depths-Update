@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(value = Chunk.class, priority = 1001)
+@Mixin(value = Chunk.class, priority = 2500)
 public abstract class MixinChunkPrecipitationHeight {
 
     @Final
