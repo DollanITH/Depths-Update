@@ -76,6 +76,10 @@ public abstract class MixinChunkGeneratorOverworld {
             }
         }
 
+        // NOTE: the deep slab of a NEW extended overworld chunk is carved here as well, but
+        // that work is actually done in MixinChunkProviderServer.depthsupdate$onGenerateChunk,
+        // which re-fills the deep after generateChunk returns (so a carve placed only here
+        // would be wiped). Keep this method limited to the deep fill itself.
         if (DepthsUpdateConfig.generateUndergroundRivers) {
             if (this.depthsupdate$riverGenerator == null) {
                 this.depthsupdate$riverGenerator = new UndergroundRiverGenerator(this.world);
@@ -83,11 +87,15 @@ public abstract class MixinChunkGeneratorOverworld {
 
             this.depthsupdate$riverGenerator.generate(x, z, primer);
         }
-        if (this.depthsupdate$noiseCaveGenerator == null) {
-            this.depthsupdate$noiseCaveGenerator = new sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator(this.world);
-        }
 
-        this.depthsupdate$noiseCaveGenerator.generate(x, z, primer);
+        if (DepthsUpdateConfig.REGISTRY.enable118Caves) {
+            if (this.depthsupdate$noiseCaveGenerator == null) {
+                this.depthsupdate$noiseCaveGenerator =
+                        new sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator(this.world);
+            }
+
+            this.depthsupdate$noiseCaveGenerator.generate(x, z, primer);
+        }
 
         if (DepthsUpdateConfig.aquifers.enableAquifers) {
             if (this.depthsupdate$aquiferGenerator == null) {

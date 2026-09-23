@@ -90,6 +90,10 @@ public class DepthsUpdateConfig {
         @Config.Comment("When loading chunks from a non-extended world, fill below Y=0 with stone.")
         public boolean convertOldWorlds = true;
 
+        @Config.Name("Carve Old-Style Deep Caves")
+        @Config.Comment("Carve vanilla 1.12.2-style caves through the deep stone below Y=0 (both for converted old worlds and newly generated extended chunks), extending the old cave network down to the new minimum Y.")
+        public boolean carveOldStyleDeepCaves = true;
+
         @Config.Name("Extend Custom World Types")
         @Config.Comment("Apply deep terrain fill (bedrock, deepslate, stone) below Y=0 for non-vanilla chunk generators (e.g. Biomes O' Plenty, RTG).")
         @Config.RequiresMcRestart
@@ -164,6 +168,9 @@ public class DepthsUpdateConfig {
 
         @Config.Name("Enable Spyglass")
         public boolean enableSpyglass = true;
+
+        @Config.Name("Enable 1.18+ Style Caves")
+        public boolean enable118Caves = false;
     }
 
     @Config.Name("Registry")

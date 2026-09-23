@@ -7,6 +7,8 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.AnvilChunkLoader;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,6 +25,8 @@ import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.util.BlockUtils;
+import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
+import sayys.depthsupdate.world.generation.OldStyleDeepCaveCarver;
 import net.minecraft.block.state.IBlockState;
 
 @Mixin(AnvilChunkLoader.class)
@@ -125,21 +129,45 @@ public abstract class MixinAnvilChunkLoader {
             return;
         }
 
-        // 检查区块是否没有y<0的方块（只有Y=0及以上的区块才转换）
-        if (depthsupdate$hasBlocksInChunkBelowY0(chunk, ctx)) {
-            return;
+        // 区块里已经有y<0方块（早前版本转换过，或本模组生成过）时不重新填深；但挖掘是
+        // 幂等的（相同世界种子重放相同洞穴，已挖掉的气/岩浆不会被重复挖），所以始终重放
+        // 挖掘：早期版本转换的“实心深板岩/旧算法洞穴”会被原地升级成当前布局，消除旧转换
+        // 区块与新转换/新生成区块之间的边界截断。
+        boolean hasDeepBlocks = depthsupdate$hasBlocksInChunkBelowY0(chunk, ctx);
+
+        if (!hasDeepBlocks) {
+            // 检查区块是否非空
+            if (!depthsupdate$hasNonEmptyChunk(chunk)) {
+                return;
+            }
+
+            // Fill below Y=0 with appropriate blocks
+            depthsupdate$fillBelowY0(chunk, worldIn, ctx);
         }
 
-        // 检查区块是否非空
-        if (!depthsupdate$hasNonEmptyChunk(chunk)) {
-            return;
+        // Old world chunks were generated back when caves only carved down to ~Y=4-8, so
+        // the deep slab below was solid stone with no caves. Re-run the classic 1.12.2
+        // MapGenCaves tunnel carver over the deep region, carving from the new bottom up to
+        // ~Y=10 so the tunnels meet the old cave band and continue seamlessly downward.
+        boolean carved = false;
+        if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
+            carved = OldStyleDeepCaveCarver.carve(worldIn, chunk.x, chunk.z,
+                    new ChunkPrimerAdapter(chunk, ctx), ctx, 10);
         }
 
-        // Fill below Y=0 with appropriate blocks
-        depthsupdate$fillBelowY0(chunk, worldIn, ctx);
+        // Only refresh light when something actually changed (fresh conversion, or an
+        // upgrade carve that dug new caves). No-op re-carves of already-converted chunks
+        // keep their existing light and skip the expensive flood fill.
+        if (carved) {
+            // Recompute heightmap and skylight after conversion
+            chunk.generateSkylightMap();
 
-        // Recompute heightmap and skylight after conversion
-        chunk.generateSkylightMap();
+            // generateSkylightMap() only rebuilds sky light. The old lava band emitted
+            // block light (level 15) whose values are still cached in the section light
+            // arrays, so without this step a large bright blob lingers where the lava was.
+            // Rebuild block light from the emitters that are still in the chunk.
+            depthsupdate$recomputeBlockLight(chunk, worldIn, ctx);
+        }
     }
 
     /**
@@ -630,6 +658,168 @@ public abstract class MixinAnvilChunkLoader {
         }
 
         return false;
+    }
+
+    /**
+     * Rebuilds the block light (EnumSkyBlock.BLOCK) for the sections the old-world
+     * conversion touched (every section at Y&lt;=0: the freshly filled stone and the
+     * former lava band). Block light cannot be recomputed through World here because
+     * readChunkFromNBT runs before the chunk (and its neighbours) are in the world,
+     * so we flood-fill the section light arrays directly, seeded from every
+     * light-emitting block still present in the chunk. Remaining lava / glowstone /
+     * torches keep their light while the stale glow left by the removed lava is
+     * cleared.
+     */
+    @Unique
+    private static void depthsupdate$recomputeBlockLight(Chunk chunk, World worldIn, HeightContext ctx) {
+        ExtendedBlockStorage[] storageArrays = chunk.getBlockStorageArray();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+
+        // 1) Drop stale block light in every section the conversion rewrote:
+        //    the negative sections (now solid stone) and section Y=0 (former lava band).
+        for (ExtendedBlockStorage section : storageArrays) {
+            if (section == null) {
+                continue;
+            }
+
+            if (section.getYLocation() <= 0) {
+                // setBlockLight is the mapping-stable way to touch the light array
+                // (getBlocklightArray() is not uniformly available across mappings).
+                for (int lx = 0; lx < 16; ++lx) {
+                    for (int ly = 0; ly < 16; ++ly) {
+                        for (int lz = 0; lz < 16; ++lz) {
+                            section.setBlockLight(lx, ly, lz, 0);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2) Seed a flood fill from every remaining light-emitting block in the chunk.
+        java.util.ArrayDeque<Long> queue = new java.util.ArrayDeque<>();
+        int chunkX = chunk.x << 4;
+        int chunkZ = chunk.z << 4;
+
+        for (int lx = 0; lx < 16; ++lx) {
+            for (int lz = 0; lz < 16; ++lz) {
+                pos.setPos(chunkX + lx, 0, chunkZ + lz);
+
+                for (int y = ctx.minY(); y < ctx.maxY(); ++y) {
+                    pos.setPos(pos.getX(), y, pos.getZ());
+                    int light = chunk.getBlockState(lx, y, lz).getLightValue(worldIn, pos);
+
+                    if (light <= 0) {
+                        continue;
+                    }
+
+                    int current = depthsupdate$blockLightAt(storageArrays, ctx, lx, y, lz);
+
+                    if (light > current) {
+                        depthsupdate$setBlockLightAt(storageArrays, ctx, lx, y, lz, light);
+                    }
+
+                    // Always seed the flood with the block's own emission so its light can
+                    // still reach the cleared sections through any transparent path.
+                    queue.offer(depthsupdate$packLightPos(lx, y, lz, light));
+                }
+            }
+        }
+
+        // 3) Flood the light through the chunk, falling off by opacity like vanilla.
+        while (!queue.isEmpty()) {
+            long key = queue.poll();
+            int x = depthsupdate$unpackX(key);
+            int y = depthsupdate$unpackY(key);
+            int z = depthsupdate$unpackZ(key);
+            int light = depthsupdate$unpackLight(key);
+
+            for (EnumFacing facing : EnumFacing.VALUES) {
+                int nx = x + facing.getXOffset();
+                int ny = y + facing.getYOffset();
+                int nz = z + facing.getZOffset();
+
+                // Stay inside this chunk; neighbours are handled by their own conversion.
+                if (nx < 0 || nx >= 16 || nz < 0 || nz >= 16 || ny < ctx.minY() || ny >= ctx.maxY()) {
+                    continue;
+                }
+
+                pos.setPos(chunkX + nx, ny, chunkZ + nz);
+                int opacity = chunk.getBlockState(nx, ny, nz).getLightOpacity(worldIn, pos);
+
+                if (opacity >= 15) {
+                    continue; // opaque block: light cannot pass through
+                }
+
+                int candidate = light - (opacity > 0 ? opacity : 1);
+
+                if (candidate <= 0) {
+                    continue;
+                }
+
+                int current = depthsupdate$blockLightAt(storageArrays, ctx, nx, ny, nz);
+
+                if (candidate > current) {
+                    depthsupdate$setBlockLightAt(storageArrays, ctx, nx, ny, nz, candidate);
+                    worldIn.notifyLightSet(pos);
+                    queue.offer(depthsupdate$packLightPos(nx, ny, nz, candidate));
+                }
+            }
+        }
+    }
+
+    @Unique
+    private static int depthsupdate$blockLightAt(ExtendedBlockStorage[] storageArrays, HeightContext ctx,
+                                                 int x, int y, int z) {
+        int idx = ctx.toStorageIndex(y);
+
+        if (idx < 0 || idx >= storageArrays.length) {
+            return 0;
+        }
+
+        ExtendedBlockStorage section = storageArrays[idx];
+        return section == null ? 0 : section.getBlockLight(x & 15, y & 15, z & 15);
+    }
+
+    @Unique
+    private static void depthsupdate$setBlockLightAt(ExtendedBlockStorage[] storageArrays, HeightContext ctx,
+                                                     int x, int y, int z, int light) {
+        int idx = ctx.toStorageIndex(y);
+
+        if (idx < 0 || idx >= storageArrays.length) {
+            return;
+        }
+
+        ExtendedBlockStorage section = storageArrays[idx];
+
+        if (section != null) {
+            section.setBlockLight(x & 15, y & 15, z & 15, light);
+        }
+    }
+
+    @Unique
+    private static long depthsupdate$packLightPos(int x, int y, int z, int light) {
+        return ((long) x << 52) | ((long) (y & 0xFFFFF) << 28) | ((long) z << 8) | (light & 0xF);
+    }
+
+    @Unique
+    private static int depthsupdate$unpackX(long key) {
+        return (int) ((key >> 52) & 15);
+    }
+
+    @Unique
+    private static int depthsupdate$unpackY(long key) {
+        int y = (int) ((key >> 28) & 0xFFFFF);
+        return (y & 0x80000) != 0 ? y - 0x100000 : y; // sign-extend the 20-bit field
+    }
+
+    @Unique
+    private static int depthsupdate$unpackZ(long key) {
+        return (int) ((key >> 8) & 15);
+    }
+
+    @Unique
+    private static int depthsupdate$unpackLight(long key) {
+        return (int) (key & 0xF);
     }
 
 }

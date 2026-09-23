@@ -39,6 +39,7 @@ import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
 import sayys.depthsupdate.world.generation.AquiferGenerator;
 import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
+import sayys.depthsupdate.world.generation.OldStyleDeepCaveCarver;
 import sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator;
 import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
@@ -191,6 +192,16 @@ public class MixinChunkProviderServer {
 
         ChunkPrimerAdapter adapter = new ChunkPrimerAdapter(chunk, ctx);
 
+        // The vanilla cave carver only applies its results to Y>=0 (its populate pass writes
+        // blocks 0..255), so the freshly filled deep slab below Y=0 never receives vanilla
+        // caves and stays solid. Re-run the classic 1.12.2 tunnel carver over the filled deep
+        // so old-style caves extend down to the new minimum Y. topY=10 matches the converted
+        // old-world path, so caves pass seamlessly across the boundary between converted and
+        // newly generated chunks instead of being cut at a chunk edge.
+        if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
+            OldStyleDeepCaveCarver.carve(this.world, x, z, adapter, ctx, 10);
+        }
+
         if (DepthsUpdateConfig.generateUndergroundRivers) {
             if (this.depthsupdate$riverGenerator == null) {
                 this.depthsupdate$riverGenerator = new UndergroundRiverGenerator(this.world);
@@ -199,11 +210,13 @@ public class MixinChunkProviderServer {
             this.depthsupdate$riverGenerator.generate(x, z, adapter);
         }
 
-        if (this.depthsupdate$noiseCaveGenerator == null) {
+        if (DepthsUpdateConfig.REGISTRY.enable118Caves) {
+            if (this.depthsupdate$noiseCaveGenerator == null) {
             this.depthsupdate$noiseCaveGenerator = new CaveNoiseGenerator(this.world);
         }
 
-        this.depthsupdate$noiseCaveGenerator.generate(x, z, adapter);
+            this.depthsupdate$noiseCaveGenerator.generate(x, z, adapter);
+        }
 
         if (DepthsUpdateConfig.aquifers.enableAquifers) {
             if (this.depthsupdate$aquiferGenerator == null) {
