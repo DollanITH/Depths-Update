@@ -38,6 +38,10 @@ public abstract class MixinAnvilChunkLoader {
     @Unique
     private static final ThreadLocal<Integer> depthsupdate$nestingLevel = ThreadLocal.withInitial(() -> 0);
 
+    @Unique
+    private static final ThreadLocal<Boolean> depthsupdate$converting =
+            ThreadLocal.withInitial(() -> false);
+
     @Inject(method = "readChunkFromNBT", at = @At("HEAD"))
     private void depthsupdate$startRead(World worldIn, NBTTagCompound compound, CallbackInfoReturnable<Chunk> cir) {
         if (depthsupdate$nestingLevel.get() == 0) {
@@ -108,6 +112,15 @@ public abstract class MixinAnvilChunkLoader {
      */
     @Inject(method = "readChunkFromNBT", at = @At("RETURN"))
     private void depthsupdate$convertOldWorld(World worldIn, NBTTagCompound compound, CallbackInfoReturnable<Chunk> cir) {
+        // 重入保护：recomputeBlockLight 会把 World 传给 getLightValue/getLightOpacity，
+        // 凿子(Chisels & Bits)等方块的实现会在其中调用 world.getBlockState()，触发
+        // 同步加载新区块，从而重入 readChunkFromNBT -> convertOldWorld -> recomputeBlockLight，
+        // 造成无限递归（StackOverflowError）。嵌套加载的区块本次不做转换，返回后由上层
+        // 继续，待其真正以顶层身份加载时再完成转换。
+        if (depthsupdate$converting.get()) {
+            return;
+        }
+
         // Check if old world conversion is enabled and this is an old world
         if (!DepthsUpdateConfig.heightExtension.convertOldWorlds) {
             return;
@@ -129,44 +142,49 @@ public abstract class MixinAnvilChunkLoader {
             return;
         }
 
-        // 区块里已经有y<0方块（早前版本转换过，或本模组生成过）时不重新填深；但挖掘是
-        // 幂等的（相同世界种子重放相同洞穴，已挖掉的气/岩浆不会被重复挖），所以始终重放
-        // 挖掘：早期版本转换的“实心深板岩/旧算法洞穴”会被原地升级成当前布局，消除旧转换
-        // 区块与新转换/新生成区块之间的边界截断。
-        boolean hasDeepBlocks = depthsupdate$hasBlocksInChunkBelowY0(chunk, ctx);
+        depthsupdate$converting.set(true);
+        try {
+            // 区块里已经有y<0方块（早前版本转换过，或本模组生成过）时不重新填深；但挖掘是
+            // 幂等的（相同世界种子重放相同洞穴，已挖掉的气/岩浆不会被重复挖），所以始终重放
+            // 挖掘：早期版本转换的“实心深板岩/旧算法洞穴”会被原地升级成当前布局，消除旧转换
+            // 区块与新转换/新生成区块之间的边界截断。
+            boolean hasDeepBlocks = depthsupdate$hasBlocksInChunkBelowY0(chunk, ctx);
 
-        if (!hasDeepBlocks) {
-            // 检查区块是否非空
-            if (!depthsupdate$hasNonEmptyChunk(chunk)) {
-                return;
+            if (!hasDeepBlocks) {
+                // 检查区块是否非空
+                if (!depthsupdate$hasNonEmptyChunk(chunk)) {
+                    return;
+                }
+
+                // Fill below Y=0 with appropriate blocks
+                depthsupdate$fillBelowY0(chunk, worldIn, ctx);
             }
 
-            // Fill below Y=0 with appropriate blocks
-            depthsupdate$fillBelowY0(chunk, worldIn, ctx);
-        }
+            // Old world chunks were generated back when caves only carved down to ~Y=4-8, so
+            // the deep slab below was solid stone with no caves. Re-run the classic 1.12.2
+            // MapGenCaves tunnel carver over the deep region, carving from the new bottom up to
+            // ~Y=10 so the tunnels meet the old cave band and continue seamlessly downward.
+            boolean carved = false;
+            if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
+                carved = OldStyleDeepCaveCarver.carve(worldIn, chunk.x, chunk.z,
+                        new ChunkPrimerAdapter(chunk, ctx), ctx, 10);
+            }
 
-        // Old world chunks were generated back when caves only carved down to ~Y=4-8, so
-        // the deep slab below was solid stone with no caves. Re-run the classic 1.12.2
-        // MapGenCaves tunnel carver over the deep region, carving from the new bottom up to
-        // ~Y=10 so the tunnels meet the old cave band and continue seamlessly downward.
-        boolean carved = false;
-        if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
-            carved = OldStyleDeepCaveCarver.carve(worldIn, chunk.x, chunk.z,
-                    new ChunkPrimerAdapter(chunk, ctx), ctx, 10);
-        }
+            // Only refresh light when something actually changed (fresh conversion, or an
+            // upgrade carve that dug new caves). No-op re-carves of already-converted chunks
+            // keep their existing light and skip the expensive flood fill.
+            if (carved) {
+                // Recompute heightmap and skylight after conversion
+                chunk.generateSkylightMap();
 
-        // Only refresh light when something actually changed (fresh conversion, or an
-        // upgrade carve that dug new caves). No-op re-carves of already-converted chunks
-        // keep their existing light and skip the expensive flood fill.
-        if (carved) {
-            // Recompute heightmap and skylight after conversion
-            chunk.generateSkylightMap();
-
-            // generateSkylightMap() only rebuilds sky light. The old lava band emitted
-            // block light (level 15) whose values are still cached in the section light
-            // arrays, so without this step a large bright blob lingers where the lava was.
-            // Rebuild block light from the emitters that are still in the chunk.
-            depthsupdate$recomputeBlockLight(chunk, worldIn, ctx);
+                // generateSkylightMap() only rebuilds sky light. The old lava band emitted
+                // block light (level 15) whose values are still cached in the section light
+                // arrays, so without this step a large bright blob lingers where the lava was.
+                // Rebuild block light from the emitters that are still in the chunk.
+                depthsupdate$recomputeBlockLight(chunk, worldIn, ctx);
+            }
+        } finally {
+            depthsupdate$converting.set(false);
         }
     }
 
