@@ -1,13 +1,36 @@
+/*
+ *  This file is part of Cubic Chunks Mod, licensed under the MIT License (MIT).
+ *
+ *  Copyright (c) 2015-2021 OpenCubicChunks
+ *  Copyright (c) 2015-2021 contributors
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
 package sayys.depthsupdate.mixin;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.debug.DebugRendererChunkBorder;
-import net.minecraft.world.World;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.entity.player.EntityPlayer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,83 +39,127 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import sayys.depthsupdate.core.HeightManager;
 
+
 @Mixin(DebugRendererChunkBorder.class)
 public class MixinDebugRendererChunkBorder {
 
-    @Final
     @Shadow
+    @Final
     private Minecraft minecraft;
 
-    @Inject(
-        method = "render",
-        at = @At("HEAD"),
-        cancellable = true
-    )
-    private void depthsupdate$renderExtended(float partialTicks, long finishTimeNano, CallbackInfo ci) {
-        World world = minecraft.world;
-        if (world == null) {
+    /**
+     * @param partialTicks partial ticks
+     * @param  finishTimeNano max time to finish frame to fit into fps limit
+     * @param ci callback info
+     *
+     * @author Babbaj
+     * @reason Change chunk border renderer to work at any Y value.
+     */
+    @Inject(method = "render", at = @At(value = "HEAD"), cancellable = true)
+    private void renderChunkBorder(float partialTicks, long finishTimeNano, CallbackInfo ci) {
+        if (!HeightManager.isExtended(minecraft.world))
             return;
+
+        ci.cancel();
+
+        EntityPlayer player = minecraft.player;
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder bufferbuilder = tessellator.getBuffer();
+        double playerX = player.lastTickPosX + (player.posX - player.lastTickPosX) * (double) partialTicks;
+        double playerY = player.lastTickPosY + (player.posY - player.lastTickPosY) * (double) partialTicks;
+        double playerZ = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * (double) partialTicks;
+        double yOffset = (Math.round(playerY / 16)) * 16 - 128; // Offset the grid's y coord to based on the player's y coord
+        // Clamp the grid to the extended world's height range so the border never renders outside it
+        int gridMinY = (int) Math.max(HeightManager.getMinY(minecraft.world), yOffset);
+        int gridMaxY = (int) Math.min(HeightManager.getMaxY(minecraft.world), 256.0D + yOffset);
+        double minY = (double) gridMinY - playerY; // add the offset
+        double maxY = (double) gridMaxY - playerY;
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableBlend();
+        double chunkX = (double) (player.chunkCoordX << 4) - playerX;
+        double chunkZ = (double) (player.chunkCoordZ << 4) - playerZ;
+        GlStateManager.glLineWidth(1.0F);
+        bufferbuilder.begin(3, DefaultVertexFormats.POSITION_COLOR);
+
+        // Red vertical lines
+        for (int i = -16; i <= 32; i += 16) {
+            for (int j = -16; j <= 32; j += 16) {
+                bufferbuilder.pos(chunkX + (double) i, minY, chunkZ + (double) j).color(1.0F, 0.0F, 0.0F, 0.0F).endVertex();
+                bufferbuilder.pos(chunkX + (double) i, minY, chunkZ + (double) j).color(1.0F, 0.0F, 0.0F, 0.5F).endVertex();
+                bufferbuilder.pos(chunkX + (double) i, maxY, chunkZ + (double) j).color(1.0F, 0.0F, 0.0F, 0.5F).endVertex();
+                bufferbuilder.pos(chunkX + (double) i, maxY, chunkZ + (double) j).color(1.0F, 0.0F, 0.0F, 0.0F).endVertex();
+            }
         }
 
-        if (HeightManager.isExtended(world)) {
-            ci.cancel();
-
-            int minY = HeightManager.getMinY(world);
-            int maxY = HeightManager.getMaxY(world);
-
-            EntityPlayerSP player = minecraft.player;
-            if (player == null) {
-                return;
-            }
-
-            Tessellator tessellator = Tessellator.getInstance();
-            BufferBuilder buffer = tessellator.getBuffer();
-
-            double d0 = player.posX;
-            double d1 = player.posZ;
-            double d2 = player.posY;
-
-            GlStateManager.enableBlend();
-            GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
-
-            int playerChunkX = player.chunkCoordX;
-            int playerChunkZ = player.chunkCoordZ;
-
-            for (int i = -8; i <= 8; ++i) {
-                for (int j = -8; j <= 8; ++j) {
-                    int chunkX = playerChunkX + i;
-                    int chunkZ = playerChunkZ + j;
-
-                    double chunkXPos = (chunkX << 4) + 0.5D - d0;
-                    double chunkZPos = (chunkZ << 4) + 0.5D - d1;
-
-                    buffer.begin(3, DefaultVertexFormats.POSITION_COLOR);
-                    buffer.pos(chunkXPos - 8.0D, (double) minY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos + 8.0D, (double) minY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos + 8.0D, (double) minY - d2, chunkZPos + 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos - 8.0D, (double) minY - d2, chunkZPos + 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos - 8.0D, (double) minY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-
-                    buffer.pos(chunkXPos - 8.0D, (double) maxY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos + 8.0D, (double) maxY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos + 8.0D, (double) maxY - d2, chunkZPos + 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos - 8.0D, (double) maxY - d2, chunkZPos + 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                    buffer.pos(chunkXPos - 8.0D, (double) maxY - d2, chunkZPos - 8.0D).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-
-                    for (int k = -8; k <= 8; k += 16) {
-                        for (int l = -8; l <= 8; l += 16) {
-                            buffer.pos((chunkX << 4) + k + 0.5D - d0, (double) minY - d2, (chunkZ << 4) + l + 0.5D - d1).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                            buffer.pos((chunkX << 4) + k + 0.5D - d0, (double) maxY - d2, (chunkZ << 4) + l + 0.5D - d1).color(1.0F, 0.0F, 0.0F, 1.0F).endVertex();
-                            buffer.pos((chunkX << 4) + k + 0.5D - d0, (double) minY - d2, (chunkZ << 4) + l + 0.5D - d1).color(0.5F, 0.0F, 0.0F, 1.0F).endVertex();
-                            buffer.pos((chunkX << 4) + k + 0.5D - d0, (double) minY - d2, (chunkZ << 4) + l + 0.5D - d1).color(0.5F, 0.0F, 0.0F, 1.0F).endVertex();
-                            buffer.pos((chunkX << 4) + k + 0.5D - d0, (double) maxY - d2, (chunkZ << 4) + l + 0.5D - d1).color(0.5F, 0.0F, 0.0F, 1.0F).endVertex();
-                        }
-                    }
-                    tessellator.draw();
-                }
-            }
-
-            GlStateManager.disableBlend();
+        // East-West yellow vertical lines
+        for (int k = 2; k < 16; k += 2) {
+            bufferbuilder.pos(chunkX + (double) k, minY, chunkZ).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, minY, chunkZ).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, maxY, chunkZ).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, maxY, chunkZ).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, minY, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, minY, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, maxY, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + (double) k, maxY, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
         }
+
+        // South-North yellow vertical lines
+        for (int l = 2; l < 16; l += 2) {
+            bufferbuilder.pos(chunkX, minY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX, minY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, maxY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, maxY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, minY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, minY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, maxY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, maxY, chunkZ + (double) l).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+        }
+
+        // Yellow horizontal lines
+        //start from the offset
+        for (int i1 = gridMinY; i1 <= gridMaxY; i1 += 2) {
+            double d7 = (double) i1 - playerY;
+            bufferbuilder.pos(chunkX, d7, chunkZ).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX, d7, chunkZ).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d7, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, d7, chunkZ + 16.0D).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, d7, chunkZ).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d7, chunkZ).color(1.0F, 1.0F, 0.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d7, chunkZ).color(1.0F, 1.0F, 0.0F, 0.0F).endVertex();
+        }
+
+        tessellator.draw();
+        GlStateManager.glLineWidth(2.0F);
+        bufferbuilder.begin(3, DefaultVertexFormats.POSITION_COLOR);
+
+        // Blue vertical lines
+        for (int j1 = 0; j1 <= 16; j1 += 16) {
+            for (int l1 = 0; l1 <= 16; l1 += 16) {
+                bufferbuilder.pos(chunkX + (double) j1, minY, chunkZ + (double) l1).color(0.25F, 0.25F, 1.0F, 0.0F).endVertex();
+                bufferbuilder.pos(chunkX + (double) j1, minY, chunkZ + (double) l1).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+                bufferbuilder.pos(chunkX + (double) j1, maxY, chunkZ + (double) l1).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+                bufferbuilder.pos(chunkX + (double) j1, maxY, chunkZ + (double) l1).color(0.25F, 0.25F, 1.0F, 0.0F).endVertex();
+            }
+        }
+
+        // Blue horizontal lines
+        //start from the offset
+        for (int k1 = gridMinY; k1 <= gridMaxY; k1 += 16) {
+            double d8 = (double) k1 - playerY;
+            bufferbuilder.pos(chunkX, d8, chunkZ).color(0.25F, 0.25F, 1.0F, 0.0F).endVertex();
+            bufferbuilder.pos(chunkX, d8, chunkZ).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d8, chunkZ + 16.0D).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, d8, chunkZ + 16.0D).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX + 16.0D, d8, chunkZ).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d8, chunkZ).color(0.25F, 0.25F, 1.0F, 1.0F).endVertex();
+            bufferbuilder.pos(chunkX, d8, chunkZ).color(0.25F, 0.25F, 1.0F, 0.0F).endVertex();
+        }
+
+        tessellator.draw();
+        GlStateManager.glLineWidth(1.0F);
+        GlStateManager.enableBlend();
+        GlStateManager.enableTexture2D();
     }
+
+
 }
