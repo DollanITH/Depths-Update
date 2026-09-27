@@ -1,4 +1,4 @@
-package sayys.depthsupdate.mixin;
+package sayys.depthsupdate.mixin.client;
 
 import net.minecraft.client.renderer.ViewFrustum;
 import net.minecraft.client.renderer.chunk.RenderChunk;

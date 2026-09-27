@@ -1,25 +1,30 @@
 /**
- * 还原后的 ChunkProviderServer Mixin
- * 源文件: MixinChunkProviderServer.java
+ * 合并版 ChunkProviderServer Mixin（fork 本地逻辑 + 上游架构）
  * Minecraft版本: 1.12.2
  * 模组: Depths Update
  * <p>
- * 这个Mixin修改了世界生成流程，主要功能：
+ * 这个Mixin修改了世界生成流程，合并后主要功能：
  * 1. 扩展世界高度（Height Extension）
- * 2. 过滤基岩层（Bedrock Filter）
- * 3. 填充自定义世界的深度
+ * 2. 基岩过滤（Bedrock Filter，上游机制：生成期间在源头取消 y=0..4 的基岩写入）
+ * 3. 自定义世界深度填充（DeepFill 分带填充，上游机制）
  * 4. 生成地下河流（Underground Rivers）
  * 5. 生成洞穴噪音（Cave Noise）
+ * 6. 老式深穴雕刻（OldStyleDeepCaveCarver，fork 保留）
+ * 7. 含水层生成（Aquifers，fork 保留）
+ * <p>
+ * 与上游的差异（fork 保留的行为）：
+ * - 上游只处理自定义世界；fork 同时处理原版主世界（generateChunk 返回后重填深度并雕刻）。
+ * - 基岩过滤仅在自定义世界激活；原版主世界仍用事后替换（backstop）把 y=0..4 的基岩换成石头。
+ * - 洞穴/含水层/老式深穴均保留 fork 的配置开关。
  */
 
 package sayys.depthsupdate.mixin;
 
 import java.util.Random;
+
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 import net.minecraft.world.gen.ChunkGeneratorDebug;
@@ -33,7 +38,10 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
+
 import sayys.depthsupdate.DepthsUpdateConfig;
+import sayys.depthsupdate.core.BedrockFilter;
+import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
@@ -90,10 +98,6 @@ public class MixinChunkProviderServer {
             )
     )
     private Chunk depthsupdate$onGenerateChunk(IChunkGenerator generator, int chunkX, int chunkZ) {
-        Chunk chunk = generator.generateChunk(chunkX, chunkZ);
-        int x = chunk.x;
-        int z = chunk.z;
-
         // 检查是否是原版主世界生成器
         boolean isVanillaOverworld = generator instanceof ChunkGeneratorOverworld;
 
@@ -109,8 +113,27 @@ public class MixinChunkProviderServer {
         boolean shouldFillCustom = isDeepWorld && !isVanillaOverworld &&
                 DepthsUpdateConfig.heightExtension.extendCustomWorldTypes;
 
-        // 如果需要过滤基岩（原版主世界或扩展高度世界）
-        if (!((isDeepWorld && (isVanillaOverworld || shouldFillCustom)))) {
+        // fork 语义：扩展高度下的原版主世界和自定义世界都要重填深度
+        boolean processChunk = isDeepWorld && (isVanillaOverworld || shouldFillCustom);
+
+        // 上游语义：仅在自定义世界生成期间激活 BedrockFilter，从源头过滤 y=0..4 的基岩写入
+        boolean filterBedrock = isDeepWorld && shouldFillCustom;
+
+        Chunk chunk;
+
+        if (filterBedrock) {
+            BedrockFilter.begin();
+        }
+
+        try {
+            chunk = generator.generateChunk(chunkX, chunkZ);
+        } finally {
+            if (filterBedrock) {
+                BedrockFilter.end();
+            }
+        }
+
+        if (!processChunk || chunk == null) {
             return chunk;
         }
 
@@ -121,15 +144,13 @@ public class MixinChunkProviderServer {
         if (this.depthsupdate$fillRandom == null) {
             this.depthsupdate$fillRandom = new Random();
         }
-        this.depthsupdate$fillRandom.setSeed((long) x * 341873128712L + (long) z * 132897987541L);
+        this.depthsupdate$fillRandom.setSeed((long) chunkX * 341873128712L + (long) chunkZ * 132897987541L);
 
         IBlockState stone = Blocks.STONE.getDefaultState();
         IBlockState deepslate = BlockUtils.getDeepslateBlockState();
         IBlockState bedrock = Blocks.BEDROCK.getDefaultState();
 
         int deepslateMaxY = DepthsUpdateConfig.deepslateMaxY;
-        int transitionRange = DepthsUpdateConfig.deepslateTransitionRange;
-        int fullDeepslateY = deepslateMaxY - transitionRange;
         int fillMaxY = Math.max(4, deepslateMaxY);
 
         ExtendedBlockStorage[] storageArrays = chunk.getBlockStorageArray();
@@ -138,37 +159,24 @@ public class MixinChunkProviderServer {
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
                 for (int by = minY; by <= fillMaxY; by++) {
-                    IBlockState state;
+                    // 上游 backstop：把直接写入 storage（绕过 primer）的 y=0..4 基岩换回石头
+                    if (by >= 0 && by <= 4) {
+                        int storageIdx = ctx.toStorageIndex(by);
 
-                    if (by <= minY + this.depthsupdate$fillRandom.nextInt(5)) {
-                        state = bedrock;
-                    } else if (by <= fullDeepslateY) {
-                        state = deepslate;
-                    } else if (by < deepslateMaxY) {
-                        double chance = (double) (deepslateMaxY - by) / (double) transitionRange;
-                        if (this.depthsupdate$fillRandom.nextDouble() < chance) {
-                            state = deepslate;
-                        } else if (by < 0) {
-                            state = stone;
-                        } else {
-                            continue;
-                        }
-                    } else if (by < 0) {
-                        state = stone;
-                    } else {
-                        // check for vanilla bedrock replacement
-                        if (by <= 4) {
-                            int storageIdx = ctx.toStorageIndex(by);
+                        if (storageIdx >= 0 && storageIdx < storageArrays.length) {
+                            ExtendedBlockStorage section = storageArrays[storageIdx];
 
-                            if (storageIdx >= 0 && storageIdx < storageArrays.length) {
-                                ExtendedBlockStorage section = storageArrays[storageIdx];
-                                if (section != Chunk.NULL_BLOCK_STORAGE
-                                        && section.get(bx, by & 15, bz).getBlock() == Blocks.BEDROCK) {
-                                    section.set(bx, by & 15, bz, stone);
-                                }
+                            if (section != Chunk.NULL_BLOCK_STORAGE
+                                    && section.get(bx, by & 15, bz).getBlock() == Blocks.BEDROCK) {
+                                section.set(bx, by & 15, bz, stone);
                             }
                         }
+                    }
 
+                    // 上游：统一分带填充（基岩底、深板岩带、过渡带、y<0 石头）
+                    IBlockState state = DeepFill.bandAt(by, minY, this.depthsupdate$fillRandom, bedrock, deepslate, stone);
+
+                    if (state == null) {
                         continue;
                     }
 
@@ -185,6 +193,11 @@ public class MixinChunkProviderServer {
                         storageArrays[storageIdx] = section;
                     }
 
+                    // 上游：0 以上只重染石头，不覆盖已有地形与洞穴
+                    if (by >= 0 && section.get(bx, by & 15, bz).getBlock() != Blocks.STONE) {
+                        continue;
+                    }
+
                     section.set(bx, by & 15, bz, state);
                 }
             }
@@ -194,12 +207,18 @@ public class MixinChunkProviderServer {
 
         // The vanilla cave carver only applies its results to Y>=0 (its populate pass writes
         // blocks 0..255), so the freshly filled deep slab below Y=0 never receives vanilla
-        // caves and stays solid. Re-run the classic 1.12.2 tunnel carver over the filled deep
-        // so old-style caves extend down to the new minimum Y. topY=10 matches the converted
-        // old-world path, so caves pass seamlessly across the boundary between converted and
-        // newly generated chunks instead of being cut at a chunk edge.
+        // caves and stays solid. Re-run the cave network over the filled deep, replaying the
+        // vanilla carver's own seeds so the deep tunnels are the exact downward continuation
+        // of the surface caves (same tunnels, crossing Y=0 seamlessly instead of being cut).
+        // topY=6: this pass carves only the deep slab AND the former bedrock backstop
+        // y=0..5 (swapped to stone above; the vanilla carver refused to dig it, so without
+        // this pass the deep caves stop at a solid slab). Y>=6 is owned by the vanilla
+        // carver (or any other cave source) and is NOT re-carved here, so existing surface
+        // caves are never touched or doubled. Note: vanilla tunnels whose centre stays
+        // above Y=0 have no below-Y0 span and therefore no deep continuation — that is the
+        // vanilla geometry itself, not a cut.
         if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
-            OldStyleDeepCaveCarver.carve(this.world, x, z, adapter, ctx, 10);
+            OldStyleDeepCaveCarver.carve(this.world, chunkX, chunkZ, adapter, ctx, 6);
         }
 
         if (DepthsUpdateConfig.generateUndergroundRivers) {
@@ -207,15 +226,15 @@ public class MixinChunkProviderServer {
                 this.depthsupdate$riverGenerator = new UndergroundRiverGenerator(this.world);
             }
 
-            this.depthsupdate$riverGenerator.generate(x, z, adapter);
+            this.depthsupdate$riverGenerator.generate(chunkX, chunkZ, adapter);
         }
 
         if (DepthsUpdateConfig.REGISTRY.enable118Caves) {
             if (this.depthsupdate$noiseCaveGenerator == null) {
-            this.depthsupdate$noiseCaveGenerator = new CaveNoiseGenerator(this.world);
-        }
+                this.depthsupdate$noiseCaveGenerator = new CaveNoiseGenerator(this.world);
+            }
 
-            this.depthsupdate$noiseCaveGenerator.generate(x, z, adapter);
+            this.depthsupdate$noiseCaveGenerator.generate(chunkX, chunkZ, adapter);
         }
 
         if (DepthsUpdateConfig.aquifers.enableAquifers) {
@@ -223,7 +242,7 @@ public class MixinChunkProviderServer {
                 this.depthsupdate$aquiferGenerator = new AquiferGenerator(this.world);
             }
 
-            this.depthsupdate$aquiferGenerator.generate(x, z, adapter);
+            this.depthsupdate$aquiferGenerator.generate(chunkX, chunkZ, adapter);
         }
 
         chunk.generateSkylightMap();

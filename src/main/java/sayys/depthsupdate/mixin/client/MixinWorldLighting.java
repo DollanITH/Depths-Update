@@ -1,4 +1,4 @@
-package sayys.depthsupdate.mixin;
+package sayys.depthsupdate.mixin.client;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumSkyBlock;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(World.class)
-public abstract class MixinWorldClient {
+public abstract class MixinWorldLighting {
     @Shadow
     public abstract boolean isValid(BlockPos pos);
 

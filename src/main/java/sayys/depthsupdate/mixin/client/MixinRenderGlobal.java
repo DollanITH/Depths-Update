@@ -1,4 +1,4 @@
-package sayys.depthsupdate.mixin;
+package sayys.depthsupdate.mixin.client;
 
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -52,30 +52,6 @@ public class MixinRenderGlobal {
         }
 
         return pos;
-    }
-
-    @Inject(method = "getRenderChunkOffset", at = @At("HEAD"), cancellable = true)
-    private void depthsupdate$getRenderChunkOffset(BlockPos playerPos, RenderChunk renderChunkBase, EnumFacing facing,
-            CallbackInfoReturnable<RenderChunk> cir) {
-        World world = Minecraft.getMinecraft().world;
-
-        if (!HeightManager.isExtended(world)) {
-            return;
-        }
-
-        HeightContext ctx = HeightManager.get(world);
-        BlockPos blockpos = renderChunkBase.getBlockPosOffset16(facing);
-
-        if (MathHelper.abs(playerPos.getX() - blockpos.getX()) > this.renderDistanceChunks * 16) {
-            cir.setReturnValue(null);
-        } else if (blockpos.getY() < ctx.minY()
-                || blockpos.getY() >= ctx.maxY()) {
-            cir.setReturnValue(null);
-        } else {
-            cir.setReturnValue(MathHelper
-                    .abs(playerPos.getZ() - blockpos.getZ()) > this.renderDistanceChunks * 16 ? null
-                            : ((IMixinViewFrustum) this.viewFrustum).invokeGetRenderChunk(blockpos));
-        }
     }
 
     @ModifyVariable(

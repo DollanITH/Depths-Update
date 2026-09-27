@@ -80,7 +80,7 @@ public class DepthsUpdateConfig {
 
         @Config.Name("Lava Level")
         @Config.Comment("The Y level at which underground air is replaced with lava.")
-        public int lavaLevel = -53;
+        public int lavaLevel = -54;
 
         @Config.Name("Void Damage Level")
         @Config.Comment("The Y level at which players start taking void damage.")
@@ -110,7 +110,7 @@ public class DepthsUpdateConfig {
     public static boolean generateSpaghettiCaves = true;
 
     @Config.Name("Deepslate Max Y")
-    public static int deepslateMaxY = 0;
+    public static int deepslateMaxY = 8;
 
     @Config.Name("Deepslate Transition Range")
     @Config.Comment("The number of blocks over which stone transitions into Deepslate.")
@@ -168,6 +168,10 @@ public class DepthsUpdateConfig {
 
         @Config.Name("Enable Spyglass")
         public boolean enableSpyglass = true;
+
+        @Config.Name("Use Custom Creative Tab")
+        @Config.Comment("Puts all registered blocks and items into a dedicated creative tab.")
+        public boolean useCustomCreativeTab = true;
 
         @Config.Name("Enable 1.18+ Style Caves")
         public boolean enable118Caves = false;

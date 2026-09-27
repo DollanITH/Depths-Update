@@ -4,7 +4,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
@@ -19,15 +18,8 @@ public abstract class MixinEntity {
     @Shadow
     public World world;
 
-    @Shadow
-    public double motionY; // 垂直速度
-
-    /**
-     * Vanilla checks {@code posY < -64.0} in onEntityUpdate to apply void damage.
-     * We replace -64.0 with the configured void damage level for the entity's dimension.
-     */
     @ModifyConstant(method = "onEntityUpdate", constant = @Constant(doubleValue = -64.0D))
     private double depthsupdate$modifyVoidDamageLevel(double original) {
-        return (double) HeightManager.getVoidDamageLevel(this.world);
+        return HeightManager.getVoidDamageLevel(this.world);
     }
 }

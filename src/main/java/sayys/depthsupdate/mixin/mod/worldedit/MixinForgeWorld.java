@@ -20,7 +20,7 @@ public abstract class MixinForgeWorld {
     @Shadow
     public abstract World getWorld();
 
-    @Inject(method = "getMinY", at = @At(value = "HEAD"), cancellable = true, remap = false)
+    @Inject(method = "getMinY", at = @At(value = "HEAD"), cancellable = true, remap = false, require = 0)
     public void getMinY(CallbackInfoReturnable<Integer> cir) {
         cir.setReturnValue(HeightManager.isExtended(worldRef.get()) ? HeightManager.getMinY(worldRef.get()) : 0);
         cir.cancel();

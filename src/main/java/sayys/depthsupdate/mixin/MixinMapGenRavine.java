@@ -13,18 +13,56 @@ import net.minecraft.world.gen.MapGenBase;
 import net.minecraft.world.gen.MapGenRavine;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.util.BlockUtils;
+import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 
+/**
+ * 合并版 MixinMapGenRavine：
+ * 1. digBlock / addTunnel / recursiveGenerate 均加 !HeightManager.isExtended(world) 守卫——
+ *    非扩展世界走原版雕刻（吸收上游）。
+ * 2. addTunnel 的 rs 写入循环加上限保护 Math.min(maxY-minY, rs.length)，
+ *    防止总高度超过 1024 时写穿 rs[1024] 数组（吸收上游健壮性修复）。
+ * 3. digBlock 岩浆判定统一为 y &lt; lavaLevel（与已合并的 MixinMapGenCaves 一致）。
+ * 4. addTunnel 采用全扫描 + depthsupdate$riverTouches（吸收上游），
+ *    防止峡谷隧道切开地下河流水面。
+ * 5. recursiveGenerate 保留 fork 的等比拉伸行为（峡谷沿世界高度伸展到深部）。
+ */
 @Mixin(MapGenRavine.class)
 public abstract class MixinMapGenRavine extends MapGenBase {
     @Shadow
     private float[] rs;
+
+    @Unique
+    private UndergroundRiverGenerator depthsupdate$river;
+
+    @Unique
+    private boolean depthsupdate$riverTouches(int chunkX, int chunkZ, int xMin, int xMax, int zMin, int zMax, int yLow, int yHigh) {
+        if (!DepthsUpdateConfig.generateUndergroundRivers) {
+            return false;
+        }
+
+        if (this.depthsupdate$river == null) {
+            this.depthsupdate$river = new UndergroundRiverGenerator(this.world);
+        }
+
+        for (int bx = xMin - 1; bx <= xMax; ++bx) {
+            for (int bz = zMin - 1; bz <= zMax; ++bz) {
+                if (this.depthsupdate$river.waterWithin(chunkX * 16 + bx, chunkZ * 16 + bz, yLow, yHigh)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     @Shadow
     protected abstract boolean isOceanBlock(ChunkPrimer data, int x, int y, int z, int chunkX, int chunkZ);
@@ -47,6 +85,10 @@ public abstract class MixinMapGenRavine extends MapGenBase {
      */
     @Inject(method = "digBlock", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$digBlock(ChunkPrimer data, int x, int y, int z, int chunkX, int chunkZ, boolean foundTop, CallbackInfo ci) {
+        if (!HeightManager.isExtended(this.world)) {
+            return;
+        }
+
         ci.cancel();
         Biome biome = this.world.getBiome(new BlockPos(x + chunkX * 16, 0, z + chunkZ * 16));
         IBlockState state = data.getBlockState(x, y, z);
@@ -58,7 +100,7 @@ public abstract class MixinMapGenRavine extends MapGenBase {
         if (state.getBlock() == Blocks.STONE || state.getBlock() == top.getBlock()
                 || state.getBlock() == filler.getBlock()
                 || state == deepslate || state.getBlock() == deepslate.getBlock()) {
-            if (y - 1 < HeightManager.getLavaLevel(this.world)) {
+            if (y < HeightManager.getLavaLevel(this.world)) {
                 data.setBlockState(x, y, z, Blocks.LAVA.getDefaultState());
             } else {
                 data.setBlockState(x, y, z, Blocks.AIR.getDefaultState());
@@ -75,6 +117,10 @@ public abstract class MixinMapGenRavine extends MapGenBase {
      */
     @Inject(method = "addTunnel", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$addTunnel(long p_180707_1_, int p_180707_3_, int p_180707_4_, ChunkPrimer p_180707_5_, double p_180707_6_, double p_180707_8_, double p_180707_10_, float p_180707_12_, float p_180707_13_, float p_180707_14_, int p_180707_15_, int p_180707_16_, double p_180707_17_, CallbackInfo ci) {
+        if (!HeightManager.isExtended(this.world)) {
+            return;
+        }
+
         ci.cancel();
         Random random = new Random(p_180707_1_);
         double d0 = (double) (p_180707_3_ * 16 + 8);
@@ -97,7 +143,9 @@ public abstract class MixinMapGenRavine extends MapGenBase {
         float f2 = 1.0F;
 
         HeightContext heightCtx = HeightManager.get(this.world);
-        int rsSize = heightCtx.maxY() - heightCtx.minY();
+        // rs is vanilla's fixed-size float[1024]; without this cap a total world
+        // height above 1024 would write past the end of the array.
+        int rsSize = Math.min(heightCtx.maxY() - heightCtx.minY(), this.rs.length);
         for (int j = 0; j < rsSize; ++j) {
             if (j == 0 || random.nextInt(3) == 0) {
                 f2 = 1.0F + random.nextFloat() * random.nextFloat();
@@ -172,22 +220,25 @@ public abstract class MixinMapGenRavine extends MapGenBase {
                         i1 = 16;
                     }
 
+                    // Full scan rather than vanilla's shell-only one, for the
+                    // same reason as MixinMapGenCaves: an underground river is a
+                    // mid-depth water slab that the interior-column skip misses.
                     boolean flag2 = false;
 
                     for (int j1 = k2; !flag2 && j1 < k; ++j1) {
                         for (int k1 = i3; !flag2 && k1 < i1; ++k1) {
                             for (int l1 = l + 1; !flag2 && l1 >= l2 - 1; --l1) {
-                                if (l1 >= worldMinY && l1 < worldMaxY) {
-                                    if (isOceanBlock(p_180707_5_, j1, l1, k1, p_180707_3_, p_180707_4_)) {
-                                        flag2 = true;
-                                    }
-
-                                    if (l1 != l2 - 1 && j1 != k2 && j1 != k - 1 && k1 != i3 && k1 != i1 - 1) {
-                                        l1 = l2;
-                                    }
+                                if (l1 >= worldMinY && l1 < worldMaxY
+                                        && isOceanBlock(p_180707_5_, j1, l1, k1, p_180707_3_, p_180707_4_)) {
+                                    flag2 = true;
                                 }
                             }
                         }
+                    }
+
+                    if (!flag2) {
+                        flag2 = depthsupdate$riverTouches(p_180707_3_, p_180707_4_, k2, k, i3, i1,
+                                Math.max(l2 - 1, worldMinY), Math.min(l + 1, worldMaxY - 1));
                     }
 
                     if (!flag2) {
@@ -231,6 +282,10 @@ public abstract class MixinMapGenRavine extends MapGenBase {
     protected void depthsupdate$recursiveGenerate(World p_180701_1_, int p_180701_2_, int p_180701_3_,
             int p_180701_4_,
             int p_180701_5_, ChunkPrimer p_180701_6_, CallbackInfo ci) {
+        if (!HeightManager.isExtended(p_180701_1_)) {
+            return;
+        }
+
         ci.cancel();
         HeightContext rHeightCtx = HeightManager.get(p_180701_1_);
         int rMinY = rHeightCtx.minY();

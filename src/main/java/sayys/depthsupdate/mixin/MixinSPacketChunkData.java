@@ -18,7 +18,7 @@ public class MixinSPacketChunkData {
     @Unique
     private static final ThreadLocal<HeightContext> depthsupdate$ctx = ThreadLocal.withInitial(() -> HeightContext.VANILLA);
 
-    @Inject(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", at = @At("HEAD"))
+    @Inject(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", at = @At(value = "HEAD", unsafe = true))
     private static void depthsupdate$captureChunk(Chunk chunkIn, int changedSectionFilter, CallbackInfo ci) {
         depthsupdate$ctx.set(HeightManager.get(chunkIn.getWorld()));
     }
@@ -27,24 +27,6 @@ public class MixinSPacketChunkData {
     private int depthsupdate$modifyFullChunkCheck(int original) {
         HeightContext ctx = depthsupdate$ctx.get();
         return ctx.isExtended() ? ctx.fullChunkSectionMask() : original;
-    }
-
-    @ModifyConstant(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", constant = @Constant(intValue = 16))
-    private static int depthsupdate$modifyLoopLimit(int original) {
-        HeightContext ctx = depthsupdate$ctx.get();
-        return ctx.isExtended() ? ctx.totalStorageSections() : original;
-    }
-
-    @ModifyConstant(method = "calculateDataSize", constant = @Constant(intValue = 16), remap = true)
-    private int depthsupdate$modifyCalculateDataSizeLoop(int original) {
-        HeightContext ctx = depthsupdate$ctx.get();
-        return ctx.isExtended() ? ctx.totalStorageSections() : original;
-    }
-
-    @ModifyConstant(method = "extractChunkData", constant = @Constant(intValue = 16), remap = true)
-    private int depthsupdate$modifyExtractChunkDataLoop(int original) {
-        HeightContext ctx = depthsupdate$ctx.get();
-        return ctx.isExtended() ? ctx.totalStorageSections() : original;
     }
 
     @Inject(method = "<init>(Lnet/minecraft/world/chunk/Chunk;I)V", at = @At("RETURN"))

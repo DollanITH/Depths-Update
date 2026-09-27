@@ -40,7 +40,7 @@ public abstract class MixinWorld {
 
     @Inject(method = "isAreaLoaded(IIIIIIZ)Z", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$isAreaLoaded(int startX, int startY, int startZ, int endX, int endY, int endZ,
-            boolean allowEmpty, CallbackInfoReturnable<Boolean> cir) {
+                                           boolean allowEmpty, CallbackInfoReturnable<Boolean> cir) {
         World self = (World) (Object) this;
         if (!HeightManager.isExtended(self)) {
             return;
@@ -145,6 +145,19 @@ public abstract class MixinWorld {
                 Chunk chunk = this.getChunk(pos);
                 cir.setReturnValue(chunk.getLightFor(type, pos));
             }
+        }
+    }
+
+    /**
+     * Vanilla's heightmap never goes below 0 and its callers rely on that:
+     * BiomePlains passes this straight to Random.nextInt with a +32 bias. A
+     * column carved clear through reports the world floor instead, so keep the
+     * vanilla range for anyone asking the world rather than the chunk.
+     */
+    @Inject(method = "getHeight(II)I", at = @At("RETURN"), cancellable = true)
+    private void depthsupdate$getHeight(int x, int z, CallbackInfoReturnable<Integer> cir) {
+        if (cir.getReturnValueI() < 0) {
+            cir.setReturnValue(0);
         }
     }
 

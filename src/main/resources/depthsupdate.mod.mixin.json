@@ -27,6 +27,7 @@
   ],
   "mixins": [
     "extrautils2.MixinItemSelectionWand",
+    "rltweaker.MixinRLTweakerHookWorld",
     "worldedit.MixinForgeWorld"
   ],
   "server": [],

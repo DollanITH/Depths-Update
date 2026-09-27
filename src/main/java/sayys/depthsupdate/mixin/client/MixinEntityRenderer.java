@@ -1,4 +1,4 @@
-package sayys.depthsupdate.mixin;
+package sayys.depthsupdate.mixin.client;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;

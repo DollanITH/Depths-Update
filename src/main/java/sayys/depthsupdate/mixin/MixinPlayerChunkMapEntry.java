@@ -82,11 +82,17 @@ public abstract class MixinPlayerChunkMapEntry {
     }
 
     /**
-     * Replaces vanilla blockChanged to prevent 8-bit Y truncation which breaks
-     * negative coordinates, and to shift section filter bits for extended dimensions.
+     * Replaces vanilla blockChanged for extended dimensions only: vanilla packs
+     * Y into 8 bits, which cannot address negative or upper-extension coordinates.
+     * Vanilla dimensions keep the vanilla path, including its changedBlocks
+     * field and SPacketMultiBlockChange batching.
      */
     @Inject(method = "blockChanged", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$blockChanged(int x, int y, int z, CallbackInfo ci) {
+        if (!depthsupdate$isExtended()) {
+            return;
+        }
+
         ci.cancel();
 
         if (this.sentToPlayers) {
@@ -94,21 +100,14 @@ public abstract class MixinPlayerChunkMapEntry {
                 this.playerChunkMap.entryChanged((PlayerChunkMapEntry) (Object) this);
             }
 
-            int sectionY;
             HeightContext ctx = depthsupdate$ctx();
-            if (ctx.isExtended()) {
-                sectionY = ctx.toStorageIndex(y);
-                if (sectionY < 0)
-                    sectionY = 0;
-                if (sectionY > ctx.totalStorageSections() - 1)
-                    sectionY = ctx.totalStorageSections() - 1;
-            } else {
-                sectionY = y >> 4;
-                if (sectionY < 0)
-                    sectionY = 0;
-                if (sectionY > 15)
-                    sectionY = 15;
-            }
+            int sectionY = ctx.toStorageIndex(y);
+
+            if (sectionY < 0)
+                sectionY = 0;
+            if (sectionY > ctx.totalStorageSections() - 1)
+                sectionY = ctx.totalStorageSections() - 1;
+
             this.changedSectionFilter |= 1 << sectionY;
 
             // Pack X in upper 4 bits, Z in next 4 bits, Y in bottom 16 bits.
@@ -130,10 +129,17 @@ public abstract class MixinPlayerChunkMapEntry {
     }
 
     /**
-     * Replaces vanilla update to unpack from 16-bit Y coordinates stored in int[].
+     * Replaces vanilla update for extended dimensions only, unpacking the 16-bit
+     * Y coordinates stored in the int[] above. Individual SPacketBlockChange
+     * packets stand in for SPacketMultiBlockChange, whose wire format has no
+     * room for Y outside 0..255.
      */
     @Inject(method = "update", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$update(CallbackInfo ci) {
+        if (!depthsupdate$isExtended()) {
+            return;
+        }
+
         ci.cancel();
 
         if (this.sentToPlayers && this.chunk != null) {

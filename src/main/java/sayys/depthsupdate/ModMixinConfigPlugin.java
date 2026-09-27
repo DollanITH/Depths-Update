@@ -3,52 +3,26 @@ package sayys.depthsupdate;
 import java.util.List;
 import java.util.Set;
 
+import net.minecraft.launchwrapper.Launch;
 import net.minecraftforge.fml.common.Loader;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+/**
+ * 合并版 ModMixinConfigPlugin（fork 门控集合 + 上游检测机制）
+ * Minecraft版本: 1.12.2
+ * 模组: Depths Update
+ * <p>
+ * 门控集合（fork）：
+ * - optifine / nothirium / celeritas / minihud：按类路径探测
+ * - worldedit / extrautils2 / journeymap：按 Forge 模组加载状态（MOD 阶段，modlist 已构建）
+ * <p>
+ * 检测机制（上游）：
+ * - 改用 Launch.classLoader.isClassExist(...)，避免 Class.forName 触发类的静态初始化，
+ *   也不依赖类加载时机（上游针对 Nothirium 检测 OptiFine 环境问题所作的修复）。
+ */
 public class ModMixinConfigPlugin implements IMixinConfigPlugin {
-    private static final boolean OPTIFINE_LOADED = detectOptiFine();
-    private static final boolean NOTHIRIUM_LOADED = detectNothirium();
-    private static final boolean CELERITAS_LOADED = detectCeleritas();
-    private static final boolean MINIHUD_LOADED = detectMinihud();
-
-    private static boolean detectOptiFine() {
-        try {
-            Class.forName("optifine.OptiFineForgeTweaker");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    private static boolean detectNothirium() {
-        try {
-            Class.forName("meldexun.nothirium.mc.Nothirium");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    private static boolean detectMinihud() {
-        try {
-            Class.forName("fi.dy.masa.minihud.MiniHud");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-    private static boolean detectCeleritas() {
-        try {
-            Class.forName("org.taumc.celeritas.CeleritasVintage");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
     @Override
     public void onLoad(String s) {}
 
@@ -71,20 +45,28 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
      */
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.endsWith(".MixinRenderGlobalChunkOffset")) {
+            return !Launch.classLoader.isClassExist("optifine.OptiFineForgeTweaker");
+        }
+
         if (mixinClassName.contains(".optifine.")) {
-            return OPTIFINE_LOADED;
+            return Launch.classLoader.isClassExist("optifine.OptiFineForgeTweaker");
         }
 
         if (mixinClassName.contains(".mod.nothirium.")) {
-            return NOTHIRIUM_LOADED;
+            return Launch.classLoader.isClassExist("meldexun.nothirium.mc.Nothirium");
         }
 
         if (mixinClassName.contains(".mod.celeritas.")) {
-            return CELERITAS_LOADED;
+            return Launch.classLoader.isClassExist("org.taumc.celeritas.CeleritasVintage");
+        }
+
+        if (mixinClassName.contains(".mod.rltweaker.")) {
+            return Launch.classLoader.isClassExist("com.charles445.rltweaker.RLTweaker");
         }
 
         if (mixinClassName.contains(".mod.minihud.")) {
-            return MINIHUD_LOADED;
+            return Launch.classLoader.isClassExist("fi.dy.masa.minihud.MiniHud");
         }
 
         if (mixinClassName.contains(".mod.worldedit.")) {

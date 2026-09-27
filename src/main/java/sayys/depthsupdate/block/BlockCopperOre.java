@@ -32,4 +32,12 @@ public class BlockCopperOre extends Block {
     public int quantityDropped(Random random) {
         return 2 + random.nextInt(4);
     }
+
+    @Override
+    public int quantityDroppedWithBonus(int fortune, Random random) {
+        // 合并自上游：铜矿的时运加成，与深板岩矿石保持一致。
+        return fortune > 0
+                ? BlockDeepslateOre.oreBonus(quantityDropped(random), fortune, random)
+                : quantityDropped(random);
+    }
 }

@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.DepthsUpdateConfig;
@@ -29,6 +30,30 @@ import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
 import sayys.depthsupdate.world.generation.OldStyleDeepCaveCarver;
 import net.minecraft.block.state.IBlockState;
 
+/**
+ * 合并版 MixinAnvilChunkLoader（fork 本地逻辑 + 上游改进）
+ * Minecraft版本: 1.12.2
+ * 模组: Depths Update
+ * <p>
+ * 高度扩展基础机制（与上游一致）：
+ * 1. readChunkFromNBT 期间以 ThreadLocal 记录当前世界的 HeightContext，并按嵌套深度管理
+ * 2. storage 数组扩容（16 -> totalStorageSections）
+ * 3. 区块段 Y 偏移与 ExtendedBlockStorage 构造器 Y 修正
+ * 4. 写入 NBT 时标记 DepthsUpdateExtended
+ * <p>
+ * 旧世界转换（fork 保留，上游已移除）：
+ * 1. convertOldWorld：加载老存档时把 Y&lt;0 区域填满石头/深板岩/基岩
+ * 2. 0..6 原版基岩层替换为石头/深板岩
+ * 3. 液体处理（0..11 岩浆清理、12..13 流态修正）
+ * 4. 老式深穴雕刻 + 区块光照重算
+ * <p>
+ * 合并说明：
+ * - 分带填充逻辑统一收敛到 sayys.depthsupdate.core.DeepFill.bandAt
+ *   （与 MixinChunkProviderServer / MixinChunkGeneratorOverworld 一致），
+ *   删除本文件内联的 getBlockState 分带重复实现。
+ * - 吸收上游 startRead/endRead 的健壮性改进：每次进入都刷新 ctx，
+ *   并用 Math.max(0, ...) 防止异常跳过 RETURN 处理器导致计数卡死。
+ */
 @Mixin(AnvilChunkLoader.class)
 public abstract class MixinAnvilChunkLoader {
 
@@ -42,22 +67,25 @@ public abstract class MixinAnvilChunkLoader {
     private static final ThreadLocal<Boolean> depthsupdate$converting =
             ThreadLocal.withInitial(() -> false);
 
+    /**
+     * 上游合并：每次进入都刷新 ctx，并用 Math.max(0, ...) 防止异常
+     * 跳过 RETURN 处理器导致计数卡死（旧实现只在嵌套深度为 0 时刷新）。
+     */
     @Inject(method = "readChunkFromNBT", at = @At("HEAD"))
     private void depthsupdate$startRead(World worldIn, NBTTagCompound compound, CallbackInfoReturnable<Chunk> cir) {
-        if (depthsupdate$nestingLevel.get() == 0) {
-            depthsupdate$ctx.set(HeightManager.get(worldIn));
-        }
-
-        depthsupdate$nestingLevel.set(depthsupdate$nestingLevel.get() + 1);
+        depthsupdate$ctx.set(HeightManager.get(worldIn));
+        depthsupdate$nestingLevel.set(Math.max(0, depthsupdate$nestingLevel.get()) + 1);
     }
 
     @Inject(method = "readChunkFromNBT", at = @At("RETURN"))
     private void depthsupdate$endRead(World worldIn, NBTTagCompound compound, CallbackInfoReturnable<Chunk> cir) {
-        depthsupdate$nestingLevel.set(depthsupdate$nestingLevel.get() - 1);
+        int depth = depthsupdate$nestingLevel.get() - 1;
 
-        if (depthsupdate$nestingLevel.get() <= 0) {
+        if (depth <= 0) {
             depthsupdate$ctx.remove();
             depthsupdate$nestingLevel.remove();
+        } else {
+            depthsupdate$nestingLevel.set(depth);
         }
     }
 
@@ -161,13 +189,16 @@ public abstract class MixinAnvilChunkLoader {
             }
 
             // Old world chunks were generated back when caves only carved down to ~Y=4-8, so
-            // the deep slab below was solid stone with no caves. Re-run the classic 1.12.2
-            // MapGenCaves tunnel carver over the deep region, carving from the new bottom up to
-            // ~Y=10 so the tunnels meet the old cave band and continue seamlessly downward.
+            // the deep slab below was solid stone with no caves. Re-run the cave network over
+            // the deep region with the vanilla carver's own seeds (same tunnels, downward
+            // continuation of the old cave band). topY=6 carves only the deep slab and the
+            // converted y=0..5 bedrock backstop (the old caves bottomed out at that bedrock,
+            // and the deep pass has to open that band for the deep caves to reach them);
+            // Y>=6 keeps whatever caves the old world already has, never re-carved here.
             boolean carved = false;
             if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
                 carved = OldStyleDeepCaveCarver.carve(worldIn, chunk.x, chunk.z,
-                        new ChunkPrimerAdapter(chunk, ctx), ctx, 10);
+                        new ChunkPrimerAdapter(chunk, ctx), ctx, 6);
             }
 
             // Only refresh light when something actually changed (fresh conversion, or an
@@ -190,17 +221,14 @@ public abstract class MixinAnvilChunkLoader {
 
     /**
      * Fill the area below Y=0 with stone, deepslate, and bedrock based on the world's configuration.
+     * 分带逻辑统一走 DeepFill.bandAt（与 MixinChunkProviderServer / MixinChunkGeneratorOverworld 一致）。
      */
     @Unique
     private void depthsupdate$fillBelowY0(Chunk chunk, World worldIn, HeightContext ctx) {
         IBlockState stone = Blocks.STONE.getDefaultState();
         IBlockState deepslate = BlockUtils.getDeepslateBlockState();
         IBlockState bedrock = Blocks.BEDROCK.getDefaultState();
-        IBlockState air = net.minecraft.init.Blocks.AIR.getDefaultState();
 
-        int deepslateMaxY = DepthsUpdateConfig.deepslateMaxY;
-        int transitionRange = DepthsUpdateConfig.deepslateTransitionRange;
-        int fullDeepslateY = deepslateMaxY - transitionRange;
         int minY = ctx.minY();
 
         ExtendedBlockStorage[] storageArrays = chunk.getBlockStorageArray();
@@ -210,19 +238,11 @@ public abstract class MixinAnvilChunkLoader {
         java.util.Random random = new java.util.Random();
         random.setSeed((long) chunk.x * 341873128712L + (long) chunk.z * 132897987541L);
 
-        // Pre-compute section boundaries to avoid repeated calculations
-        // Cache commonly used values
-        int[] storageIndices = new int[12 - minY + 1]; // Y=minY to 11
-        for (int by = minY; by <= 11; by++) {
-            storageIndices[by - minY] = ctx.toStorageIndex(by);
-        }
-
         // Fill from bottom to top with optimized processing
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
                 depthsupdate$processColumn(bx, bz, storageArrays, hasSkyLight, minY,
-                    stone, deepslate, bedrock, air, random,
-                    fullDeepslateY, deepslateMaxY, transitionRange, ctx, worldIn);
+                    stone, deepslate, bedrock, random, ctx, worldIn);
             }
         }
     }
@@ -235,14 +255,9 @@ public abstract class MixinAnvilChunkLoader {
     private void depthsupdate$processColumn(int bx, int bz, ExtendedBlockStorage[] storageArrays,
                                          boolean hasSkyLight, int minY,
                                          IBlockState stone, IBlockState deepslate,
-                                         IBlockState bedrock, IBlockState air,
+                                         IBlockState bedrock,
                                          java.util.Random random,
-                                         int fullDeepSlateY, int deepslateMaxY, int transitionRange,
                                          HeightContext ctx, World worldIn) {
-
-        // Per-column bedrock height threshold (mimics vanilla per-column randomization)
-        // Uses the chunk-seeded random so it is deterministic per chunk and varies per column
-        int bedrockThreshold = minY + random.nextInt(5);
 
         // Process bedrock replacement zone (Y=0-6)
         for (int by = Math.max(0, minY); by <= 6; by++) {
@@ -258,6 +273,8 @@ public abstract class MixinAnvilChunkLoader {
         depthsupdate$updateLiquidsInColumn(bx, bz, storageArrays, hasSkyLight, minY, ctx, worldIn);
 
         // Process deep stone filling (Y < 0)
+        // 分带逻辑：DeepFill.bandAt 内部每列消耗一次 rand.nextInt(5)（基岩阈值），
+        // 过渡带消耗 rand.nextDouble()，与旧的内联实现随机数序列一致（结果等价）。
         for (int by = minY; by < 0; by++) {
             int storageIdx = ctx.toStorageIndex(by);
             if (storageIdx < 0 || storageIdx >= storageArrays.length) continue;
@@ -268,11 +285,8 @@ public abstract class MixinAnvilChunkLoader {
                 storageArrays[storageIdx] = section;
             }
 
-            // Determine block type with optimized logic
-            IBlockState state = depthsupdate$getBlockState(by, minY, bedrockThreshold,
-                fullDeepSlateY, deepslateMaxY, transitionRange, stone, deepslate, bedrock, random);
-
-            section.set(bx, by & 15, bz, state);
+            section.set(bx, by & 15, bz,
+                    DeepFill.bandAt(by, minY, random, bedrock, deepslate, stone));
         }
     }
 
@@ -294,29 +308,6 @@ public abstract class MixinAnvilChunkLoader {
 
         if (condition.test(section)) {
             section.set(bx, y & 15, bz, newState);
-        }
-    }
-
-    /**
-     * Get the appropriate block state for a given Y coordinate.
-     * Centralized block determination logic.
-     */
-    @Unique
-    private IBlockState depthsupdate$getBlockState(int y, int minY, int bedrockThreshold,
-                                                 int fullDeepslateY, int deepslateMaxY,
-                                                 int transitionRange, IBlockState stone,
-                                                 IBlockState deepslate, IBlockState bedrock,
-                                                 java.util.Random random) {
-        if (y <= bedrockThreshold) {
-            return bedrock;
-        } else if (y <= fullDeepslateY) {
-            return deepslate;
-        } else if (y < deepslateMaxY) {
-            // Optimized transition zone calculation
-            double chance = (deepslateMaxY - y) / (double) transitionRange;
-            return random.nextDouble() < chance ? deepslate : stone;
-        } else {
-            return stone;
         }
     }
 
