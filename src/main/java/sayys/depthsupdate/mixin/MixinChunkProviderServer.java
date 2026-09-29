@@ -37,10 +37,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
-import sayys.depthsupdate.core.BedrockFilter;
 import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
@@ -82,23 +82,26 @@ public class MixinChunkProviderServer {
     }
 
     /**
-     * 重定向IChunkGenerator.generateChunks()方法
+     * 在 ChunkProviderServer.provideChunk(int,int)Chunk 返回时注入，
+     * 对刚生成好的 Chunk 做深度后处理（重填深度、基岩 backstop、河流/洞穴/含水层、天空光）。
      *
-     * 原始方法签名:
-     * Chunk generateChunks(int x, int z)
-     *
-     * 被注入到的方法:
-     * ChunkProviderServer.loadChunk(int x, int z)
+     * 说明：原实现用 @Redirect 重定向 generateChunk 调用，但其 @At(INVOKE) 指向的
+     * IChunkGenerator.generateChunk（接口调用点）在本 Cleanroom 运行时无法命中，导致
+     * "Scanned 0 target(s)" 崩溃。改为 @Inject @At("RETURN") 只依赖方法本身（refmap
+     * 已验证能映射 provideChunk→func_186025_d），不依赖任何调用点，更稳健。
      */
-    @Redirect(
+    @Inject(
             method = "provideChunk(II)Lnet/minecraft/world/chunk/Chunk;",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/world/gen/IChunkGenerator;generateChunk(II)Lnet/minecraft/world/chunk/Chunk;"
-            )
+            at = @At("RETURN")
     )
-    private Chunk depthsupdate$onGenerateChunk(IChunkGenerator generator, int chunkX, int chunkZ) {
+    private void depthsupdate$onProvideChunk(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
+        Chunk chunk = cir.getReturnValue();
+        if (chunk == null) {
+            return;
+        }
+
         // 检查是否是原版主世界生成器
+        IChunkGenerator generator = this.chunkGenerator;
         boolean isVanillaOverworld = generator instanceof ChunkGeneratorOverworld;
 
         // 检查是否是扁平化或调试世界生成器
@@ -116,25 +119,8 @@ public class MixinChunkProviderServer {
         // fork 语义：扩展高度下的原版主世界和自定义世界都要重填深度
         boolean processChunk = isDeepWorld && (isVanillaOverworld || shouldFillCustom);
 
-        // 上游语义：仅在自定义世界生成期间激活 BedrockFilter，从源头过滤 y=0..4 的基岩写入
-        boolean filterBedrock = isDeepWorld && shouldFillCustom;
-
-        Chunk chunk;
-
-        if (filterBedrock) {
-            BedrockFilter.begin();
-        }
-
-        try {
-            chunk = generator.generateChunk(chunkX, chunkZ);
-        } finally {
-            if (filterBedrock) {
-                BedrockFilter.end();
-            }
-        }
-
-        if (!processChunk || chunk == null) {
-            return chunk;
+        if (!processChunk) {
+            return;
         }
 
         HeightContext ctx = HeightManager.get(this.world);
@@ -246,8 +232,6 @@ public class MixinChunkProviderServer {
         }
 
         chunk.generateSkylightMap();
-
-        return chunk;
     }
 
 }
