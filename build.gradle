@@ -110,7 +110,6 @@ unimined.minecraft {
             mixinRemap {
                 enableBaseMixin()
                 enableMixinExtra()
-                disableRefmap()
             }
         }
     } else {
@@ -118,7 +117,6 @@ unimined.minecraft {
             mixinRemap {
                 enableBaseMixin()
                 enableMixinExtra()
-                disableRefmap()
             }
         }
     }

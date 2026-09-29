@@ -6,6 +6,7 @@
   },
   "compatibilityLevel": "JAVA_25",
   "plugin": "sayys.depthsupdate.ModMixinConfigPlugin",
+  "refmap": "depthsupdate.refmap.json",
   "target": "@env(DEFAULT)",
   "client": [
     "client.IMixinViewFrustum",
