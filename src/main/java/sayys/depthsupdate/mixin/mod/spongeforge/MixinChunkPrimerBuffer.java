@@ -23,7 +23,9 @@ import sayys.depthsupdate.core.HeightManager;
  * 负 Y 写入即可落到 MixinChunkPrimer 扩展出的数据数组上（和 RTG 走 post-gen 写扩展存储等价）。
  * 仅当 HeightManager 报告扩展（isExtended）时生效；否则完全保持 vanilla 行为。
  */
-@Mixin(targets = "org.spongepowered.common.util.gen.ChunkPrimerBuffer")
+// Sponge 类与其方法名（getBlockStart / CHUNK_SIZE 等）是固定名，运行时不被 MC remap，
+// 必须 remap=false，避免 MOD 阶段 mixin 误 remap 目标类名而解析失败。
+@Mixin(targets = "org.spongepowered.common.util.gen.ChunkPrimerBuffer", remap = false)
 public abstract class MixinChunkPrimerBuffer {
 
     @Redirect(method = "<init>",

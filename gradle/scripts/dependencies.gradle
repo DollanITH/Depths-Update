@@ -36,6 +36,7 @@ dependencies {
         compileOnly "com.cleanroommc:lwjglx:1.0.0"
     }
 
+    modImplementation("curse.maven:spongeforge-1279505:8530444")
     modImplementation("curse.maven:journeymap-32274:8923612")
     modImplementation("curse.maven:fugue-1005815:7663573")
     modImplementation("curse.maven:had-enough-items-557549:7515497")

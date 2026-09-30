@@ -21,18 +21,20 @@ import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
  * 在扩展世界下本就等于世界 Y，mod 生成写的世界 Y 也保持原值。非扩展世界时 min.y=0，
  * 本 patch 行为与原版完全一致。
  */
-@Mixin(targets = "org.spongepowered.common.util.gen.ChunkBufferPrimer")
+// Sponge 类的方法名（func_177855_a / func_177856_a 等）是固定 srg 名，运行时不被 MC remap，
+// 故必须 remap=false，否则 MOD 阶段 mixin 会把 vanilla srg 名 func_177855_a 误 remap 而解析失败。
+@Mixin(targets = "org.spongepowered.common.util.gen.ChunkBufferPrimer", remap = false)
 public abstract class MixinChunkBufferPrimer {
 
-    @ModifyArgs(method = "func_177855_a",
-            at = @At(value = "INVOKE", target = "setBlock"))
+    @ModifyArgs(method = "setBlockState",
+            at = @At(value = "INVOKE", target = "Lorg/spongepowered/api/world/extent/MutableBlockVolume;setBlock(IIILorg/spongepowered/api/block/BlockState;)Z"))
     private void depthsupdate$yThroughOnSet(Args args, int x, int y, int z, IBlockState state) {
         // buffer.setBlock(min.x+x, y, min.z+z, state)：y 保持世界坐标，不加 min.y
         args.set(1, y);
     }
 
-    @ModifyArgs(method = "func_177856_a",
-            at = @At(value = "INVOKE", target = "getBlock"))
+    @ModifyArgs(method = "getBlockState",
+            at = @At(value = "INVOKE", target = "Lorg/spongepowered/api/world/extent/MutableBlockVolume;getBlock(III)Lorg/spongepowered/api/block/BlockState;"))
     private void depthsupdate$yThroughOnGet(Args args, int x, int y, int z) {
         // buffer.getBlock(min.x+x, y, min.z+z)：y 保持世界坐标，不加 min.y
         args.set(1, y);
