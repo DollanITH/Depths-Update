@@ -80,9 +80,12 @@ public abstract class MixinChunkGeneratorOverworld {
 
         int fillMaxY = Math.max(0, DepthsUpdateConfig.deepslateMaxY);
 
+        // 深部(by<0)填充由 MixinChunkProviderServer.onProvideChunk 在 generateChunk
+        // 返回后直接写入扩展存储完成；此处是生成阶段的 Sponge ChunkPrimerBuffer，
+        // Y 范围固定 0..255，不能写负数，故下限夹到 0（否则 PositionOutOfBoundsException）。
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
-                for (int by = minY; by <= fillMaxY; by++) {
+                for (int by = Math.max(0, minY); by <= fillMaxY; by++) {
                     IBlockState banded = DeepFill.bandAt(by, minY, this.rand, bedrock, deepslate, stone);
 
                     if (banded != null) {
