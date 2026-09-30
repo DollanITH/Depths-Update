@@ -29,6 +29,8 @@
   "mixins": [
     "extrautils2.MixinItemSelectionWand",
     "rltweaker.MixinRLTweakerHookWorld",
+    "spongeforge.MixinChunkBufferPrimer",
+    "spongeforge.MixinChunkPrimerBuffer",
     "worldedit.MixinForgeWorld"
   ],
   "server": [],

@@ -69,6 +69,11 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
             return Launch.classLoader.isClassExist("fi.dy.masa.minihud.MiniHud");
         }
 
+        if (mixinClassName.contains(".mod.spongeforge.")) {
+            return Loader.isModLoaded("spongeforge")
+                    || Launch.classLoader.isClassExist("org.spongepowered.common.util.gen.ChunkPrimerBuffer");
+        }
+
         if (mixinClassName.contains(".mod.worldedit.")) {
             return Loader.isModLoaded("worldedit");
         }

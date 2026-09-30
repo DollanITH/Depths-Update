@@ -1,0 +1,48 @@
+package sayys.depthsupdate.mixin.mod.spongeforge;
+
+import com.flowpowered.math.vector.Vector3i;
+
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+import sayys.depthsupdate.core.HeightContext;
+import sayys.depthsupdate.core.HeightManager;
+
+/**
+ * SpongeForge 生成阶段会把 vanilla 的 {@code ChunkPrimer} 包进自己的
+ * {@code ChunkPrimerBuffer}，其构造器写死：
+ * <pre>
+ *   super(getBlockStart(chunkX, chunkZ), SpongeChunkLayout.CHUNK_SIZE);
+ * </pre>
+ * 其中 {@code SpongeChunkLayout.CHUNK_SIZE} 是硬编码的 16×256×16，且完全不读世界实际高度、
+ * 也不感知 MixinChunkPrimer 扩展出的数据数组。因此生成期任何负 Y 写入都会在
+ * {@code AbstractBlockBuffer.checkRange} 越界崩溃（PositionOutOfBoundsException）。
+ *
+ * 这里把缓冲的 start.Y 改为 minY、size.Y 改为 (maxY - minY)，让生成期缓冲同样覆盖扩展高度，
+ * 负 Y 写入即可落到 MixinChunkPrimer 扩展出的数据数组上（和 RTG 走 post-gen 写扩展存储等价）。
+ * 仅当 HeightManager 报告扩展（isExtended）时生效；否则完全保持 vanilla 行为。
+ */
+@Mixin(targets = "org.spongepowered.common.util.gen.ChunkPrimerBuffer")
+public abstract class MixinChunkPrimerBuffer {
+
+    @Redirect(method = "<init>",
+            at = @At(value = "INVOKE",
+                    target = "Lorg/spongepowered/common/util/gen/ChunkPrimerBuffer;getBlockStart(II)Lcom/flowpowered/math/vector/Vector3i;"))
+    private static Vector3i depthsupdate$extendStart(int chunkX, int chunkZ) {
+        HeightContext ctx = HeightManager.getMaxContext();
+        int minY = ctx.isExtended() ? ctx.minY() : 0;
+        return new Vector3i(chunkX * 16, minY, chunkZ * 16);
+    }
+
+    @Redirect(method = "<init>",
+            at = @At(value = "FIELD",
+                    target = "Lorg/spongepowered/common/world/storage/SpongeChunkLayout;CHUNK_SIZE:Lcom/flowpowered/math/vector/Vector3i;"))
+    private static Vector3i depthsupdate$extendSize() {
+        HeightContext ctx = HeightManager.getMaxContext();
+        if (!ctx.isExtended()) {
+            return new Vector3i(16, 256, 16);
+        }
+        return new Vector3i(16, ctx.maxY() - ctx.minY(), 16);
+    }
+}
