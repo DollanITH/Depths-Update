@@ -115,10 +115,12 @@ public abstract class MixinMapGenCaves extends MapGenBase {
 
     @Inject(method = "addTunnel", at = @At("HEAD"), cancellable = true)
     protected void depthsupdate$addTunnel(long p_180702_1_, int p_180702_3_, int p_180702_4_, ChunkPrimer p_180702_5_, double p_180702_6_, double p_180702_8_, double p_180702_10_, float p_180702_12_, float p_180702_13_, float p_180702_14_, int p_180702_15_, int p_180702_16_, double p_180702_17_, CallbackInfo ci) {
-        if (!HeightManager.isExtended(this.world)) {
-            return;
-        }
-
+        // 必须无条件接管（始终 cancel），绝不能落到原版 addTunnel 本体：
+        // 扩展世界的隧道中心可低至 minY+8=-56，半径/步进累积可读到 minY-10=-74，
+        // 而 Sponge ChunkPrimerBuffer 底界是 minY=-64。若 this.world 在 Sponge
+        // 生成期（如 ClimateControl 找出生点）为空，isExtended 会误判 false，
+        // 原版体不带 [minY,maxY) 守卫就会越界崩溃。HeightManager.get(null)
+        // 返回 VANILLA(minY=0)，此时按 vanilla 范围安全钳制即可。
         ci.cancel();
 
         double d0 = (double) (p_180702_3_ * 16 + 8);

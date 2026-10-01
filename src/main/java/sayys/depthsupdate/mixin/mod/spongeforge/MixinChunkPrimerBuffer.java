@@ -4,6 +4,7 @@ import com.flowpowered.math.vector.Vector3i;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import sayys.depthsupdate.core.HeightContext;
@@ -46,5 +47,25 @@ public abstract class MixinChunkPrimerBuffer {
             return new Vector3i(16, 256, 16);
         }
         return new Vector3i(16, ctx.maxY() - ctx.minY(), 16);
+    }
+
+    /**
+     * 洞穴生成器（尤其 ClimateControl 找出生点、this.world 为空时）的隧道数学会把
+     * Y 走到世界底以下（实测 -103）。缓冲的 checkRange 对此抛 PositionOutOfBoundsException。
+     * 在缓冲读写入口把世界 Y 钳到 [minY, maxY-1]：读钳到底界（基岩→视为不可挖）、
+     * 写钳到底界以上，让洞穴止于世界底，堵死所有洞穴路径的越界。
+     * 此注入挂在 {@code ChunkPrimerBuffer.getBlock/setBlock}（本 mixin 已证实能生效的类），
+     * 是每个生成期读写必经的咽喉。
+     */
+    @ModifyVariable(method = "getBlock", at = @At("HEAD"), index = 2)
+    private int depthsupdate$clampGetY(int y) {
+        HeightContext ctx = HeightManager.getMaxContext();
+        return Math.max(ctx.minY(), Math.min(y, ctx.maxY() - 1));
+    }
+
+    @ModifyVariable(method = "setBlock", at = @At("HEAD"), index = 2)
+    private int depthsupdate$clampSetY(int y) {
+        HeightContext ctx = HeightManager.getMaxContext();
+        return Math.max(ctx.minY(), Math.min(y, ctx.maxY() - 1));
     }
 }

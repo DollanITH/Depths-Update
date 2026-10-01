@@ -77,6 +77,15 @@ public class MixinChunkProviderServer {
     @Unique
     private AquiferGenerator depthsupdate$aquiferGenerator;
 
+    /**
+     * 已做过深度后处理的 chunk 坐标（(x<<32)|z）。provideChunk 对同一 chunk 会被
+     * populate 期间反复调用（RTG 地牢等 getBlockState→getChunk 每次都命中缓存），
+     * 若每个缓存命中都重跑填充+日志会刷屏并卡死 Server thread。用此集合保证每 chunk
+     * 只处理一次。
+     */
+    @Unique
+    private final java.util.Set<Long> depthsupdate$processedChunks = new java.util.HashSet<>();
+
     public MixinChunkProviderServer() {
         super();
     }
@@ -120,6 +129,13 @@ public class MixinChunkProviderServer {
         boolean processChunk = isDeepWorld && (isVanillaOverworld || shouldFillCustom);
 
         if (!processChunk) {
+            return;
+        }
+
+        // 每 chunk 只处理一次：缓存命中（populate 期间反复调用 provideChunk）直接返回，
+        // 避免对同一 chunk 重复重填 + 重复刷 WARN 日志把 Server thread 卡在控制台锁上。
+        long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
+        if (!this.depthsupdate$processedChunks.add(key)) {
             return;
         }
 
@@ -191,18 +207,6 @@ public class MixinChunkProviderServer {
 
         ChunkPrimerAdapter adapter = new ChunkPrimerAdapter(chunk, ctx);
 
-        // The vanilla cave carver only applies its results to Y>=0 (its populate pass writes
-        // blocks 0..255), so the freshly filled deep slab below Y=0 never receives vanilla
-        // caves and stays solid. Re-run the cave network over the filled deep, replaying the
-        // vanilla carver's own seeds so the deep tunnels are the exact downward continuation
-        // of the surface caves (same tunnels, crossing Y=0 seamlessly instead of being cut).
-        // topY=6: this pass carves only the deep slab AND the former bedrock backstop
-        // y=0..5 (swapped to stone above; the vanilla carver refused to dig it, so without
-        // this pass the deep caves stop at a solid slab). Y>=6 is owned by the vanilla
-        // carver (or any other cave source) and is NOT re-carved here, so existing surface
-        // caves are never touched or doubled. Note: vanilla tunnels whose centre stays
-        // above Y=0 have no below-Y0 span and therefore no deep continuation — that is the
-        // vanilla geometry itself, not a cut.
         if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
             OldStyleDeepCaveCarver.carve(this.world, chunkX, chunkZ, adapter, ctx, 6);
         }
@@ -211,7 +215,6 @@ public class MixinChunkProviderServer {
             if (this.depthsupdate$riverGenerator == null) {
                 this.depthsupdate$riverGenerator = new UndergroundRiverGenerator(this.world);
             }
-
             this.depthsupdate$riverGenerator.generate(chunkX, chunkZ, adapter);
         }
 
@@ -219,7 +222,6 @@ public class MixinChunkProviderServer {
             if (this.depthsupdate$noiseCaveGenerator == null) {
                 this.depthsupdate$noiseCaveGenerator = new CaveNoiseGenerator(this.world);
             }
-
             this.depthsupdate$noiseCaveGenerator.generate(chunkX, chunkZ, adapter);
         }
 
@@ -227,7 +229,6 @@ public class MixinChunkProviderServer {
             if (this.depthsupdate$aquiferGenerator == null) {
                 this.depthsupdate$aquiferGenerator = new AquiferGenerator(this.world);
             }
-
             this.depthsupdate$aquiferGenerator.generate(chunkX, chunkZ, adapter);
         }
 
