@@ -47,7 +47,7 @@ public class MixinCommandsHeightLimits {
             constant = @Constant(expandZeroConditions = Constant.Condition.GREATER_THAN_OR_EQUAL_TO_ZERO, ordinal = 0),
             slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/world/gen/structure/StructureBoundingBox;minY:I")))
     private int command_getMinY1(int orig, MinecraftServer server, ICommandSender sender, String[] args) {
-        if (HeightManager.isExtended(sender.getEntityWorld().provider.getDimension())) {
+        if (HeightManager.isExtended(sender.getEntityWorld())) {
             return HeightManager.getMinY(sender.getEntityWorld( ));
         }
         return orig;
@@ -59,7 +59,7 @@ public class MixinCommandsHeightLimits {
             constant = @Constant(expandZeroConditions = Constant.Condition.GREATER_THAN_OR_EQUAL_TO_ZERO, ordinal = 1),
             slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/world/gen/structure/StructureBoundingBox;minY:I")))
     private int command_getMinY2(int orig, MinecraftServer server, ICommandSender sender, String[] args) {
-        if (HeightManager.isExtended(sender.getEntityWorld().provider.getDimension())) {
+        if (HeightManager.isExtended(sender.getEntityWorld())) {
             return HeightManager.getMinY(sender.getEntityWorld( ));
         }
         return orig;
@@ -71,7 +71,7 @@ public class MixinCommandsHeightLimits {
             constant = @Constant(intValue = 256, ordinal = 0),
             slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/world/gen/structure/StructureBoundingBox;maxY:I")))
     private int command_getMaxY1(int orig, MinecraftServer server, ICommandSender sender, String[] args) {
-        if (HeightManager.isExtended(sender.getEntityWorld().provider.getDimension())) {
+        if (HeightManager.isExtended(sender.getEntityWorld())) {
             return HeightManager.getMaxY(sender.getEntityWorld( ));
         }
         return orig;
@@ -83,7 +83,7 @@ public class MixinCommandsHeightLimits {
             constant = @Constant(intValue = 256, ordinal = 1),
             slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/world/gen/structure/StructureBoundingBox;maxY:I")))
     private int command_getMaxY2(int orig, MinecraftServer server, ICommandSender sender, String[] args) {
-        if (HeightManager.isExtended(sender.getEntityWorld().provider.getDimension())) {
+        if (HeightManager.isExtended(sender.getEntityWorld())) {
             return HeightManager.getMaxY(sender.getEntityWorld( ));
         }
         return orig;

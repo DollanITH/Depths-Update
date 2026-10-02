@@ -1,8 +1,10 @@
 package sayys.depthsupdate.mixin;
 
+import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import org.jspecify.annotations.NonNull;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -12,10 +14,12 @@ import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(WorldProvider.class)
 public abstract class MixinWorldProvider {
+    @Accessor("world")
+    public abstract World getWorld();
+
     @Inject(method = "getActualHeight", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getActualHeight(@NonNull CallbackInfoReturnable<Integer> cir) {
-        WorldProvider self = (WorldProvider) (Object) this;
-        HeightContext ctx = HeightManager.get(self.getDimension());
+        HeightContext ctx = HeightManager.get(getWorld());
         if (ctx.isExtended()) {
             cir.setReturnValue(ctx.maxY());
         }
@@ -23,8 +27,7 @@ public abstract class MixinWorldProvider {
 
     @Inject(method = "getHeight", at = @At("HEAD"), cancellable = true)
     private void depthsupdate$getHeight(@NonNull CallbackInfoReturnable<Integer> cir) {
-        WorldProvider self = (WorldProvider) (Object) this;
-        HeightContext ctx = HeightManager.get(self.getDimension());
+        HeightContext ctx = HeightManager.get(getWorld());
         if (ctx.isExtended()) {
             cir.setReturnValue(ctx.maxY());
         }

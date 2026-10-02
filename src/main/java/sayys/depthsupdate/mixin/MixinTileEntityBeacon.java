@@ -36,6 +36,6 @@ public abstract class MixinTileEntityBeacon extends TileEntityLockable {
     
     @ModifyConstant(method = "updateSegmentColors", constant = @Constant(expandZeroConditions = Constant.Condition.LESS_THAN_ZERO))
     private int updateSegmentColorsYValue(int orig) {
-        return HeightManager.isExtended(world.provider.getDimension()) ? HeightManager.getMinY(world) : orig;
+        return HeightManager.isExtended(world) ? HeightManager.getMinY(world) : orig;
     }
 }

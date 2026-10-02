@@ -29,7 +29,7 @@ public class RenderHandlerMixin {
         if (world == null) {
             return original;
         }
-        if (!HeightManager.isExtended(world.provider.getDimension( ))) {
+        if (!HeightManager.isExtended(world)) {
             return original;
         }
         return original == 0 ? HeightManager.getMinY(world) : original == 256 ? HeightManager.getMaxY(world) : original;
@@ -48,7 +48,7 @@ public class RenderHandlerMixin {
         if (world == null) {
             return original;
         }
-        if (!HeightManager.isExtended(world.provider.getDimension( ))) {
+        if (!HeightManager.isExtended(world)) {
             return original;
         }
         return original == 0 ? HeightManager.getMinY(world) : original == 256 ? HeightManager.getMaxY(world) : original;
@@ -68,7 +68,7 @@ public class RenderHandlerMixin {
         if (world == null) {
             return original;
         }
-        if (!HeightManager.isExtended(world.provider.getDimension( ))) {
+        if (!HeightManager.isExtended(world)) {
             return original;
         }
         return original == 0 ? HeightManager.getMinY(world) : original == 256 ? HeightManager.getMaxY(world) : original;

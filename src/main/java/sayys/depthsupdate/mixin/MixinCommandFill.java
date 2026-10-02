@@ -39,7 +39,7 @@ public class MixinCommandFill {
         if (world == null) {
             return original;
         }
-        if (!HeightManager.isExtended(world.provider.getDimension())) {
+        if (!HeightManager.isExtended(world)) {
             return original;
         }
         return original == 0 ? HeightManager.getMinY(world) : HeightManager.getMaxY(world);

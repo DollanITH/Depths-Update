@@ -1,9 +1,11 @@
 package sayys.depthsupdate.core;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import net.minecraft.world.World;
+import net.minecraft.world.WorldType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -93,9 +95,15 @@ public final class HeightManager {
 
     /**
      * Returns the HeightContext for the given world.
+     *
+     * <p>The context is gated by the world's terrain type: height extension only
+     * applies to RTG, the vanilla main world, amplified and large-biomes worlds.
+     * For any other terrain type (e.g. superflat or debug worlds, which also
+     * register dimension 0) the vanilla height range is returned, so those worlds
+     * do not use the extended height.
      */
     public static HeightContext get(World world) {
-        if (world == null) return HeightContext.VANILLA;
+        if (world == null || !isEligibleWorldType(world)) return HeightContext.VANILLA;
         return get(world.provider.getDimension());
     }
 
@@ -107,13 +115,34 @@ public final class HeightManager {
         return contexts.getOrDefault(dimensionId, HeightContext.VANILLA);
     }
 
+    /**
+     * Returns whether the given world uses extended height.
+     * Gated by {@link #isEligibleWorldType(World)}.
+     */
     public static boolean isExtended(World world) {
-        return world != null && isExtended(world.provider.getDimension());
+        return world != null && isEligibleWorldType(world) && isExtended(world.provider.getDimension());
     }
 
     public static boolean isExtended(int dimensionId) {
         ensureInitialized();
         return contexts.containsKey(dimensionId);
+    }
+
+    /**
+     * World types eligible for height extension. Only the vanilla terrain types
+     * (default, amplified, large biomes and their legacy variants) and RTG's
+     * custom world type are eligible. All other terrain types — superflat, debug
+     * and customized worlds among them — keep the vanilla height range.
+     */
+    private static boolean isEligibleWorldType(World world) {
+        WorldType worldType = world.getWorldType();
+        if (worldType == null) {
+            return false;
+        }
+        if (worldType == WorldType.FLAT || worldType == WorldType.DEBUG_ALL_BLOCK_STATES) {
+            return false;
+        }
+        return true;
     }
 
     /**
