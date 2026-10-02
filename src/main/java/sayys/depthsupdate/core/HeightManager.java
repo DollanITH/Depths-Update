@@ -140,9 +140,9 @@ public final class HeightManager {
             return false;
         }
         if (worldType == WorldType.FLAT || worldType == WorldType.DEBUG_ALL_BLOCK_STATES) {
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     /**
