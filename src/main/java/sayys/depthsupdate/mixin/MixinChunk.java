@@ -32,6 +32,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
@@ -802,43 +803,47 @@ public abstract class MixinChunk {
         }
     }
 
-    @Inject(method = "addEntity", at = @At("HEAD"), cancellable = true)
-    public void depthsupdate$addEntity(@NonNull Entity entityIn, CallbackInfo ci) {
-        if (!depthsupdate$isExtended()) {
-            return;
-        }
-
+    /**
+     * Redirects the section-index computation inside vanilla/Forge addEntity.
+     *
+     * <p>Vanilla computes {@code k = MathHelper.floor(posY / 16.0D)} (the 3rd floor(D)I call in
+     * addEntity, ordinal = 2 — verified against the Cleanroom 1.12.2 Chunk bytecode) and clamps it
+     * to {@code [0, entityLists.length-1]}. In extended worlds we redirect that call to return the
+     * extended storage index instead (via HeightContext.toStorageIndex), so entities at negative Y
+     * land in the negative storage sections (indices 16+upperSections..) instead of being clamped
+     * into section 0. Non-extended worlds keep vanilla behaviour.</p>
+     *
+     * <p>Unlike the previous {@code @Inject(HEAD, cancellable) + ci.cancel()} full replacement, the
+     * rest of the vanilla/Forge body still executes: the Forge EnteringChunk event, the
+     * {@code entity.chunkCoordY = k} write (which Sponge's cross-chunk move logic relies on for
+     * {@code removeEntityAtIndex(entity, entity.chunkCoordY)}), the list add, and — critically —
+     * Sponge's {@code @Inject} at RETURN of addEntity that registers this chunk as the entity's
+     * active chunk. Without that registration Sponge can never remove the entity from the old
+     * chunk's entity list when it crosses a chunk boundary, so the entity ends up registered into
+     * multiple chunks' lists, and the save-time validation (Sponge's
+     * AnvilChunkLoaderMixin_FilterInvalidEntities) spams "is not in chunk ... skipping save".</p>
+     */
+    @Redirect(method = "addEntity",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/util/math/MathHelper;floor(D)I",
+                    ordinal = 2))
+    private int depthsupdate$entitySectionIndex(double value) {
         HeightContext ctx = depthsupdate$ctx();
-        this.hasEntities = true;
-        int i = MathHelper.floor(entityIn.posX / 16.0D);
-        int j = MathHelper.floor(entityIn.posZ / 16.0D);
 
-        if (i != this.x || j != this.z) {
-            org.apache.logging.log4j.LogManager.getLogger().warn("Wrong location! ({}, {}) should be ({}, {}), {}", i,
-                    j, this.x, this.z, entityIn);
-            entityIn.setDead();
+        if (!ctx.isExtended()) {
+            return MathHelper.floor(value);
         }
 
-        int k = ctx.toStorageIndex(MathHelper.floor(entityIn.posY));
+        int sectionY = MathHelper.floor(value);
+        int storageIdx = ctx.toStorageIndex(sectionY << 4);
 
-        if (k < 0) {
-            k = 0;
+        if (storageIdx < 0) {
+            // Out of world height: mirror vanilla's clamp semantics
+            // (below floor -> section 0, above ceiling -> last section)
+            return sectionY < ctx.minSection() ? 0 : this.entityLists.length - 1;
         }
 
-        if (k >= this.entityLists.length) {
-            k = this.entityLists.length - 1;
-        }
-
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS
-                .post(new net.minecraftforge.event.entity.EntityEvent.EnteringChunk(entityIn, this.x, this.z, entityIn.chunkCoordX, entityIn.chunkCoordZ));
-        entityIn.addedToChunk = true;
-        entityIn.chunkCoordX = this.x;
-        entityIn.chunkCoordY = k;
-        entityIn.chunkCoordZ = this.z;
-        this.entityLists[k].add(entityIn);
-        this.dirty = true;
-
-        ci.cancel();
+        return Math.min(storageIdx, this.entityLists.length - 1);
     }
 
     @Inject(method = "getEntitiesWithinAABBForEntity", at = @At("HEAD"), cancellable = true)

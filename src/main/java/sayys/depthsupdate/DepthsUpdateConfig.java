@@ -56,7 +56,7 @@ public class DepthsUpdateConfig {
         @Config.Name("Global Maximum Y")
         @Config.Comment("The maximum Y coordinate for extended dimensions. Must be a multiple of 16.")
         @Config.RangeInt(min = 256, max = 2048)
-        public int globalMaxY = 384;
+        public int globalMaxY = 400;
 
         @Config.Name("Extended Dimensions")
         @Config.Comment("Dimension IDs to apply height extension to. Default: [0] (Overworld only).")
