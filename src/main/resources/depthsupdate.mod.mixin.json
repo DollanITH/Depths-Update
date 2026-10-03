@@ -31,6 +31,7 @@
     "rltweaker.MixinRLTweakerHookWorld",
     "spongeforge.MixinChunkBufferPrimer",
     "spongeforge.MixinChunkPrimerBuffer",
+    "spongeforge.MixinSpongeWorldApi",
     "worldedit.MixinForgeWorld"
   ],
   "server": [],

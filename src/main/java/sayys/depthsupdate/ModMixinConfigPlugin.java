@@ -70,8 +70,11 @@ public class ModMixinConfigPlugin implements IMixinConfigPlugin {
         }
 
         if (mixinClassName.contains(".mod.spongeforge.")) {
-            return Loader.isModLoaded("spongeforge")
-                    || Launch.classLoader.isClassExist("org.spongepowered.common.util.gen.ChunkPrimerBuffer");
+            // 只用类存在性判断：MixinSpongeWorldApi target 的 net.minecraft.world.World 是核心类，
+            // 可能在 FML mod 列表构建完成前就被 mixin 转换（此时 Loader.isModLoaded 内部
+            // Loader.namedMods 为 null，直接调用会 NPE 导致启动崩溃）。spongeforge 作为
+            // coremod 早期即在 classpath，其 ChunkPrimerBuffer 类存在即表示已安装。
+            return Launch.classLoader.isClassExist("org.spongepowered.common.util.gen.ChunkPrimerBuffer");
         }
 
         if (mixinClassName.contains(".mod.worldedit.")) {
