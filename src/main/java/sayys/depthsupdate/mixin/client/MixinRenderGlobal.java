@@ -1,18 +1,16 @@
 package sayys.depthsupdate.mixin.client;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.*;
 import net.minecraft.client.renderer.chunk.RenderChunk;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
@@ -66,6 +64,25 @@ public class MixinRenderGlobal {
             return f19;
         }
         return -((float) (depthsupdate$voidBoxD0(partialTicks) + 63.0 - (float) ctx.minY()));
+    }
+
+    @Redirect(
+            method = "renderWorldBorder",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/BufferBuilder;pos(DDD)Lnet/minecraft/client/renderer/BufferBuilder;"),
+            require = 1)
+    public BufferBuilder depthsupdate$worldBorderPos(BufferBuilder buffer, double x, double y, double z) {
+        HeightContext ctx = HeightManager.get(world);
+        if (!ctx.isExtended()) {
+            return buffer.pos(x, y, z);
+        }
+        if (y == 256.0D) {
+            return buffer.pos(x, ctx.maxY(), z);
+        }
+        if (y == 0.0D) {
+            return buffer.pos(x, ctx.minY(), z);
+        }
+        return buffer.pos(x, y, z);
     }
 
     @WrapWithCondition(
