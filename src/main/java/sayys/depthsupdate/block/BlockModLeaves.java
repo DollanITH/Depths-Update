@@ -88,10 +88,28 @@ public class BlockModLeaves extends BlockLeaves {
         return BlockRenderLayer.CUTOUT_MIPPED;
     }
 
+    /**
+     * Cull the faces between two blocks of this same leaf block.
+     *
+     * <p>Vanilla {@code BlockLeaves.shouldSideBeRendered} does this cull only in the
+     * non-fancy ("fast graphics") path, and then it compares block <em>classes</em>,
+     * so two different leaf blocks next to each other also get culled. This override
+     * keeps the cull unconditional (so the canopy is optimised at every graphics
+     * setting) but restricts it to the identical block, which preserves the correct
+     * seam between different leaf types.
+     *
+     * <p>It must not be replaced by a bare {@code return true}: doing so forces all
+     * six faces of every leaf block through the tessellator even when they are buried
+     * inside a canopy, which multiplies the leaf geometry of a chunk by roughly a
+     * factor of three to six and is a major cause of the reported framerate collapse.
+     */
     @Override
     public boolean shouldSideBeRendered(IBlockState blockState, IBlockAccess blockAccess, BlockPos pos,
             net.minecraft.util.EnumFacing side) {
-        return true;
+        BlockPos neighbour = pos.offset(side);
+
+        return blockAccess.getBlockState(neighbour).getBlock() != this
+                || super.shouldSideBeRendered(blockState, blockAccess, pos, side);
     }
 
     @Override

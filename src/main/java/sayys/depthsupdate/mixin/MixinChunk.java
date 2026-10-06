@@ -36,9 +36,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
+import sayys.depthsupdate.core.ChunkCarveMarker;
 
 @Mixin(Chunk.class)
-public abstract class MixinChunk {
+public abstract class MixinChunk implements ChunkCarveMarker {
     @Shadow
     @Final
     private World world;
@@ -125,8 +126,63 @@ public abstract class MixinChunk {
     private static final ThreadLocal<Integer> depthsupdate$setBlockDepth = ThreadLocal.withInitial(() -> 0);
 
     @Unique
+    private HeightContext depthsupdate$ctxCache;
+
+    /**
+     * Whether the deep (below Y=0) fill + cave carve has already been applied to this
+     * chunk, for the current height/topY configuration.
+     *
+     * <p>Without this marker the old-world conversion in {@code MixinAnvilChunkLoader}
+     * re-ran {@code OldStyleDeepCaveCarver.carve()} on <em>every</em> chunk load. The
+     * carver is deterministic and idempotent for untouched terrain (it only removes
+     * stone/deepslate), but any block the player has placed at a position the carver
+     * wants to dig is stone to the carver and gets silently deleted. That is what made
+     * deep terrain appear to "partially regenerate itself at random" between visits.
+     *
+     * <p>The marker is written to and read back from chunk NBT, so an already-carved
+     * chunk is never re-carved again, whether it stays loaded or is reloaded in a later
+     * session. It backs the {@link ChunkCarveMarker} methods; the field itself is not
+     * accessed from other mixins because Mixin cannot resolve a {@code @Unique} field
+     * across mixins.
+     */
+    @Unique
+    private boolean depthsupdate$carved;
+
+    @Override
+    public boolean depthsupdate$isCarved() {
+        return this.depthsupdate$carved;
+    }
+
+    @Override
+    public void depthsupdate$setCarved(boolean carved) {
+        this.depthsupdate$carved = carved;
+    }
+
+    /**
+     * Per-chunk HeightContext cache.
+     *
+     * <p>HeightManager.get(World) reads a volatile field, runs an eligibility
+     * check and performs a boxed HashMap lookup. The chunk accessors below call
+     * it for every single block read/write/light query, i.e. hundreds of
+     * thousands of times per chunk rebuild. The context for a given chunk is
+     * immutable for the lifetime of the world (changed only by a config-driven
+     * HeightManager.initialize(), which requires a restart because the affected
+     * options are @RequiresMcRestart), so memoising it per Chunk instance is
+     * safe. The dimension is re-checked so a stale cache can never leak across
+     * worlds.
+     */
+    @Unique
     private HeightContext depthsupdate$ctx() {
-        return HeightManager.get(this.world);
+        HeightContext cached = this.depthsupdate$ctxCache;
+
+        if (cached != null && HeightManager.isExtended(this.world)) {
+            return cached;
+        }
+
+        HeightContext ctx = HeightManager.get(this.world);
+        this.depthsupdate$ctxCache = ctx;
+
+        return ctx;
     }
 
     @Unique
@@ -586,6 +642,57 @@ public abstract class MixinChunk {
         cir.setReturnValue(ctx.minY());
     }
 
+    /**
+     * Height-map scan for one column, semantically identical to the vanilla
+     * {@code for (l = top; l > minY; --l) if (getBlockLightOpacity(j, l - 1, k) != 0)}
+     * loop but skipping storage sections that hold no blocks at all.
+     *
+     * <p>Vanilla only ever scans the 16 layers of the single section that the
+     * highest block lives in, so it performs at most 16 opacity lookups per
+     * column. Because the height extension gives a chunk up to 29 sections
+     * spanning e.g. y=-48..351, the previous port kept vanilla's loop shape and
+     * therefore walked the entire world height downwards - up to ~416 opacity
+     * lookups per column, 256 columns, on every generateHeightMap() /
+     * generateSkylightMap() call (chunk load, relight, every block change).
+     *
+     * <p>A section that is null or {@code isEmpty()} cannot contain a non-zero
+     * light opacity, so its 16 layers are skipped with a single check. The
+     * recorded height and the minimum tracking are unchanged.
+     */
+    @Unique
+    private void depthsupdate$scanColumnHeight(int x, int z, int fromY, int minY) {
+        int y = fromY;
+
+        while (y > minY) {
+            int storageIdx = this.depthsupdate$ctx().toStorageIndex(y - 1);
+
+            if (storageIdx < 0 || storageIdx >= this.storageArrays.length) {
+                y -= 16;
+                continue;
+            }
+
+            ExtendedBlockStorage section = this.storageArrays[storageIdx];
+
+            if (section == NULL_BLOCK_STORAGE || section.isEmpty()) {
+                // Nothing opaque can exist in this section: skip straight to its bottom.
+                y = section == NULL_BLOCK_STORAGE ? y - 1 - ((y - 1) & 15) : section.getYLocation();
+                continue;
+            }
+
+            if (this.getBlockLightOpacity(x, y - 1, z) != 0) {
+                this.heightMap[z << 4 | x] = y;
+
+                if (y < this.heightMapMinimum) {
+                    this.heightMapMinimum = y;
+                }
+
+                return;
+            }
+
+            --y;
+        }
+    }
+
     @Inject(method = "generateHeightMap", at = @At("HEAD"), cancellable = true, require = 0)
     private void depthsupdate$generateHeightMap(@NonNull CallbackInfo ci) {
         if (!depthsupdate$isExtended()) {
@@ -604,17 +711,7 @@ public abstract class MixinChunk {
 
                 this.heightMap[k << 4 | j] = minY;
 
-                for (int l = i + 16; l > minY; --l) {
-                    if (this.getBlockLightOpacity(j, l - 1, k) != 0) {
-                        this.heightMap[k << 4 | j] = l;
-
-                        if (l < this.heightMapMinimum) {
-                            this.heightMapMinimum = l;
-                        }
-
-                        break;
-                    }
-                }
+                depthsupdate$scanColumnHeight(j, k, i + 16, minY);
             }
         }
 
@@ -639,17 +736,7 @@ public abstract class MixinChunk {
 
                 this.heightMap[k << 4 | j] = minY;
 
-                for (int l = i + 16; l > minY; --l) {
-                    if (this.getBlockLightOpacity(j, l - 1, k) != 0) {
-                        this.heightMap[k << 4 | j] = l;
-
-                        if (l < this.heightMapMinimum) {
-                            this.heightMapMinimum = l;
-                        }
-
-                        break;
-                    }
-                }
+                depthsupdate$scanColumnHeight(j, k, i + 16, minY);
 
                 if (this.world.provider.hasSkyLight()) {
                     int k1 = 15;

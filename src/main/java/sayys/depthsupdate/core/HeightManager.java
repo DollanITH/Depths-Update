@@ -20,11 +20,35 @@ public final class HeightManager {
     private static final Logger LOGGER = LogManager.getLogger("DepthsUpdate/HeightManager");
 
     private static volatile Map<Integer, HeightContext> contexts = Map.of();
+
+    /**
+     * Direct-index companion to {@link #contexts}, used by the per-block-call
+     * {@link #get(int)} / {@link #isExtended(int)} paths. Those are reached from mixins
+     * that run once per block read, write and light query (hundreds of thousands of
+     * times per chunk rebuild), where the map's Integer boxing and hashing showed up in
+     * profiling. Rebuilt together with {@code contexts} on every initialize().
+     */
+    private static volatile HeightContext[] contextByDimension = new HeightContext[0];
+
     private static volatile HeightContext maxContext = HeightContext.VANILLA;
     private static volatile boolean initialized = false;
     private static final Object INIT_LOCK = new Object();
 
     private HeightManager() {}
+
+    /**
+     * How many dimension ids the direct-index table covers. Vanilla dimensions are
+     * -1..1 and mods allocate a handful more, so 256 is generous while staying small.
+     * Ids outside this range fall back to a map lookup.
+     */
+    private static final int DIMENSION_TABLE_SIZE = 256;
+
+    /**
+     * Sentinel stored in {@link #contextByDimension} for a dimension that is not
+     * height-extended. Distinct from any real context so a plain array read can answer
+     * both "which context" and "is it extended".
+     */
+    private static final HeightContext NOT_EXTENDED = new HeightContext(0, 256, 11, -64, 63);
 
     /**
      * Reads configuration and builds the per-dimension context map.
@@ -37,10 +61,40 @@ public final class HeightManager {
             int globalMinY = roundToMultipleOf16(cfg.globalMinY, "globalMinY");
             int globalMaxY = roundToMultipleOf16(cfg.globalMaxY, "globalMaxY");
 
+            // Defensive clamp. HeightContext rejects a non-multiple-of-16 bound by
+            // throwing, and initialize() runs from a config static initialiser, so a bad
+            // value (e.g. globalMaxY = 401) would otherwise surface as
+            // ExceptionInInitializerError while the config class is being loaded, leaving
+            // no usable fallback. roundToMultipleOf16() above does not guard against this:
+            // it computes (value >> 4) << 4, which is the identity for any value already
+            // on the 16-grid but silently leaves one that is not unchanged, so it reports
+            // 401 as "401" while still calling it rounded.
+            if (globalMaxY % 16 != 0) {
+                int clamped = (globalMaxY >> 4) << 4;
+
+                if (clamped < 256) {
+                    clamped = 256;
+                }
+
+                LOGGER.error("globalMaxY ({}) is not a multiple of 16, clamping to {}", globalMaxY, clamped);
+                globalMaxY = clamped;
+            }
+
+            if (globalMinY % 16 != 0) {
+                int clamped = (globalMinY >> 4) << 4;
+
+                if (clamped > 0) {
+                    clamped = 0;
+                }
+
+                LOGGER.error("globalMinY ({}) is not a multiple of 16, clamping to {}", globalMinY, clamped);
+                globalMinY = clamped;
+            }
+
             if (globalMinY >= globalMaxY) {
                 LOGGER.error("globalMinY ({}) must be less than globalMaxY ({}), using defaults", globalMinY, globalMaxY);
                 globalMinY = -64;
-                globalMaxY = 320;
+                globalMaxY = 400;
             }
 
             int seaLevel = cfg.seaLevel;
@@ -74,12 +128,77 @@ public final class HeightManager {
                 }
             }
 
-            // Publish atomically
+            verifyContextsDoNotOverflowSectionMask(newContexts, globalContext);
+
+            // Publish atomically: build the direct-index table, then swap both references.
+            HeightContext[] table = buildDimensionTable(newContexts);
+
             contexts = Map.copyOf(newContexts);
+            contextByDimension = table;
             maxContext = largest;
             initialized = true;
 
             LOGGER.info("HeightManager initialized: {} extended dimension(s), max context: {}", newContexts.size(), largest);
+        }
+    }
+
+    /**
+     * Flattens the per-dimension contexts into a direct-index array, padding the
+     * uncovered slots with {@link #NOT_EXTENDED}. Dimensions outside
+     * {@code [0, DIMENSION_TABLE_SIZE)} keep using the map.
+     */
+    private static HeightContext[] buildDimensionTable(Map<Integer, HeightContext> newContexts) {
+        HeightContext[] table = new HeightContext[DIMENSION_TABLE_SIZE];
+
+        java.util.Arrays.fill(table, NOT_EXTENDED);
+
+        for (Map.Entry<Integer, HeightContext> entry : newContexts.entrySet()) {
+            int dimId = entry.getKey();
+
+            if (dimId >= 0 && dimId < DIMENSION_TABLE_SIZE) {
+                table[dimId] = entry.getValue();
+            }
+        }
+
+        return table;
+    }
+
+    /**
+     * The largest number of storage sections the chunk protocol can address.
+     *
+     * <p>Both the "which sections are present" mask on {@code SPacketChunkData} and the
+     * changed-section filter on {@code PlayerChunkMapEntry} are 32-bit ints written as
+     * {@code availableSections |= 1 << sectionIndex}. At index 32 that shift wraps
+     * around, so the affected sections are silently never sent to the client. The
+     * client then keeps an empty section where the server has terrain: the player sees
+     * holes ("fake chunks" / 假区块), falls through solid ground, and the mismatch also
+     * makes the server believe it has already delivered a section it never did.
+     *
+     * <p>This is a hard protocol ceiling, not a tuning knob, so exceeding it produces a
+     * loud error naming the offending dimension instead of silently corrupting chunks.
+     */
+    private static final int MAX_STORAGE_SECTIONS = 31;
+
+    private static void verifyContextsDoNotOverflowSectionMask(Map<Integer, HeightContext> newContexts,
+                                                               HeightContext globalContext) {
+        for (Map.Entry<Integer, HeightContext> entry : newContexts.entrySet()) {
+            HeightContext ctx = entry.getValue();
+
+            if (ctx.totalStorageSections() > MAX_STORAGE_SECTIONS) {
+                LOGGER.error("Dimension {} requests {} storage sections (minY={}, maxY={}), but the chunk protocol "
+                                + "can only address {}. Sections at index >= {} are never sent to the client, which "
+                                + "shows up as missing/holes in the world at those heights. Reduce globalMinY/maxY "
+                                + "or the per-dimension override so that (maxY - minY) / 16 + 16 <= {}.",
+                        entry.getKey(), ctx.totalStorageSections(), ctx.minY(), ctx.maxY(),
+                        MAX_STORAGE_SECTIONS, MAX_STORAGE_SECTIONS, MAX_STORAGE_SECTIONS);
+            }
+        }
+
+        if (!newContexts.containsValue(globalContext) && globalContext.totalStorageSections() > MAX_STORAGE_SECTIONS) {
+            LOGGER.error("The global height range requests {} storage sections (minY={}, maxY={}), but the chunk "
+                            + "protocol can only address {}.",
+                    globalContext.totalStorageSections(), globalContext.minY(), globalContext.maxY(),
+                    MAX_STORAGE_SECTIONS);
         }
     }
 
@@ -109,10 +228,21 @@ public final class HeightManager {
 
     /**
      * Returns the HeightContext for the given dimension ID.
+     *
+     * <p>Hot path: called per block access through many mixins, so it reads the
+     * direct-index table rather than doing a boxed map lookup.
      */
     public static HeightContext get(int dimensionId) {
         ensureInitialized();
-        return contexts.getOrDefault(dimensionId, HeightContext.VANILLA);
+
+        HeightContext[] table = contextByDimension;
+        HeightContext ctx = dimensionId >= 0 && dimensionId < table.length ? table[dimensionId] : null;
+
+        if (ctx == null) {
+            return contexts.getOrDefault(dimensionId, HeightContext.VANILLA);
+        }
+
+        return ctx == NOT_EXTENDED ? HeightContext.VANILLA : ctx;
     }
 
     /**
@@ -125,6 +255,13 @@ public final class HeightManager {
 
     public static boolean isExtended(int dimensionId) {
         ensureInitialized();
+
+        HeightContext[] table = contextByDimension;
+
+        if (dimensionId >= 0 && dimensionId < table.length) {
+            return table[dimensionId] != NOT_EXTENDED;
+        }
+
         return contexts.containsKey(dimensionId);
     }
 

@@ -44,6 +44,7 @@ import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
+import sayys.depthsupdate.core.ChunkCarveMarker;
 import sayys.depthsupdate.util.BlockUtils;
 import sayys.depthsupdate.world.generation.AquiferGenerator;
 import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
@@ -85,6 +86,18 @@ public class MixinChunkProviderServer {
      */
     @Unique
     private final java.util.Set<Long> depthsupdate$processedChunks = new java.util.HashSet<>();
+
+    /**
+     * Upper bound for {@link #depthsupdate$processedChunks}. The set is only used to
+     * de-duplicate the repeated provideChunk() calls a single generation pass makes,
+     * so it never needs to remember more than the chunks in flight. It is a
+     * StrongReference: keeping every chunk coordinate ever generated for the whole
+     * server lifetime leaked memory on long sessions, so the set is cleared once it
+     * grows past this bound (a false negative merely re-runs the idempotent deep
+     * post-processing, which is safe).
+     */
+    @Unique
+    private static final int DEPTHSUPDATE_MAX_PROCESSED_CHUNKS = 8192;
 
     public MixinChunkProviderServer() {
         super();
@@ -132,9 +145,25 @@ public class MixinChunkProviderServer {
             return;
         }
 
+        // provideChunk() 返回的既可能是刚 generateChunk 出来的新 chunk，也可能是从磁盘
+        // loadChunkFromFile 读回的旧 chunk。后者的 deep fill + carve 已经在它被读入时
+        // （MixinAnvilChunkLoader.depthsupdate$convertOldWorld 会还原并置位 carve 标记）
+        // 完成，或在此前某次会话生成时完成。若这里对它再跑一遍"重填 + 重新雕刻"，会把
+        // 玩家在 y<0 放置的每一个方块都覆盖回石头/深板岩、并把洞穴路径里的建筑挖掉 ——
+        // 这正是"每次进存档 -Y 区块被重置"的根因。carve 标记在这里起与加载路径同样的
+        // 守卫作用：已定稿的区块直接跳过。
+        if (((ChunkCarveMarker) (Object) chunk).depthsupdate$isCarved()) {
+            return;
+        }
+
         // 每 chunk 只处理一次：缓存命中（populate 期间反复调用 provideChunk）直接返回，
         // 避免对同一 chunk 重复重填 + 重复刷 WARN 日志把 Server thread 卡在控制台锁上。
         long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
+
+        if (this.depthsupdate$processedChunks.size() >= DEPTHSUPDATE_MAX_PROCESSED_CHUNKS) {
+            this.depthsupdate$processedChunks.clear();
+        }
+
         if (!this.depthsupdate$processedChunks.add(key)) {
             return;
         }
@@ -210,6 +239,12 @@ public class MixinChunkProviderServer {
         if (DepthsUpdateConfig.heightExtension.carveOldStyleDeepCaves) {
             OldStyleDeepCaveCarver.carve(this.world, chunkX, chunkZ, adapter, ctx, 6);
         }
+
+        // Record that this chunk has had its deep shape finalised, so that the
+        // old-world conversion path in MixinAnvilChunkLoader does not run the carver
+        // over it (and delete player blocks along cave paths) the first time this
+        // freshly generated chunk is read back from disk.
+        ((ChunkCarveMarker) (Object) chunk).depthsupdate$setCarved(true);
 
         if (DepthsUpdateConfig.generateUndergroundRivers) {
             if (this.depthsupdate$riverGenerator == null) {

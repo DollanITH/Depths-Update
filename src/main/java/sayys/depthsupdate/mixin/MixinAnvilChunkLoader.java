@@ -24,6 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
+import sayys.depthsupdate.core.ChunkCarveMarker;
 import sayys.depthsupdate.DepthsUpdateConfig;
 import sayys.depthsupdate.util.BlockUtils;
 import sayys.depthsupdate.world.generation.ChunkPrimerAdapter;
@@ -122,10 +123,18 @@ public abstract class MixinAnvilChunkLoader {
         return new ExtendedBlockStorage(y, storeSkylight);
     }
 
+    /**
+     * NBT key recording that the deep (below Y=0) fill + cave carve has already been
+     * applied to this chunk. See {@link MixinChunk}'s carve marker.
+     */
+    @Unique
+    private static final String DEPTHSUPDATE_CARVED_TAG = "DepthsUpdateCarved";
+
     @Inject(method = "writeChunkToNBT", at = @At("HEAD"))
     private void depthsupdate$markExtendedChunk(Chunk chunkIn, World worldIn, NBTTagCompound compound, CallbackInfo ci) {
         if (HeightManager.isExtended(worldIn)) {
             compound.setBoolean("DepthsUpdateExtended", true);
+            compound.setBoolean(DEPTHSUPDATE_CARVED_TAG, ((ChunkCarveMarker) (Object) chunkIn).depthsupdate$isCarved());
         }
     }
 
@@ -163,6 +172,10 @@ public abstract class MixinAnvilChunkLoader {
             return;
         }
 
+        // Restore the persisted deep-carve marker before anything else can look at it.
+        ChunkCarveMarker access = (ChunkCarveMarker) (Object) chunk;
+        access.depthsupdate$setCarved(compound.getBoolean(DEPTHSUPDATE_CARVED_TAG));
+
         HeightContext ctx = HeightManager.get(worldIn);
 
         // Only proceed if we need to fill below Y=0
@@ -170,12 +183,20 @@ public abstract class MixinAnvilChunkLoader {
             return;
         }
 
+        // Already deep-filled and carved in a previous visit: nothing to do. Re-running
+        // the carve here would delete any block the player placed along a cave path,
+        // because to the carver such a block is indistinguishable from the stone the
+        // fill originally produced. Skipping is what makes deep terrain stable across
+        // save/reload.
+        if (access.depthsupdate$isCarved()) {
+            return;
+        }
+
         depthsupdate$converting.set(true);
         try {
-            // 区块里已经有y<0方块（早前版本转换过，或本模组生成过）时不重新填深；但挖掘是
-            // 幂等的（相同世界种子重放相同洞穴，已挖掉的气/岩浆不会被重复挖），所以始终重放
-            // 挖掘：早期版本转换的“实心深板岩/旧算法洞穴”会被原地升级成当前布局，消除旧转换
-            // 区块与新转换/新生成区块之间的边界截断。
+            // 区块里已经有y<0方块（早前版本转换过，或本模组生成过）时不重新填深。
+            // 挖掘只在本区块从未被本逻辑处理过时执行一次（见上面的 carved 守卫）：
+            // 重新挖掘会把玩家沿洞穴路径放置的方块当作填充生成的石头挖掉。
             boolean hasDeepBlocks = depthsupdate$hasBlocksInChunkBelowY0(chunk, ctx);
 
             if (!hasDeepBlocks) {
@@ -201,9 +222,13 @@ public abstract class MixinAnvilChunkLoader {
                         new ChunkPrimerAdapter(chunk, ctx), ctx, 6);
             }
 
+            // Mark regardless of `carved`: the carve is deterministic, so a run that dug
+            // nothing has already produced this chunk's final deep shape and must not be
+            // repeated either.
+            access.depthsupdate$setCarved(true);
+
             // Only refresh light when something actually changed (fresh conversion, or an
-            // upgrade carve that dug new caves). No-op re-carves of already-converted chunks
-            // keep their existing light and skip the expensive flood fill.
+            // upgrade carve that dug new caves).
             if (carved) {
                 // Recompute heightmap and skylight after conversion
                 chunk.generateSkylightMap();
@@ -713,23 +738,45 @@ public abstract class MixinAnvilChunkLoader {
             for (int lz = 0; lz < 16; ++lz) {
                 pos.setPos(chunkX + lx, 0, chunkZ + lz);
 
-                for (int y = ctx.minY(); y < ctx.maxY(); ++y) {
-                    pos.setPos(pos.getX(), y, pos.getZ());
-                    int light = chunk.getBlockState(lx, y, lz).getLightValue(worldIn, pos);
+                // Walk only the storage sections that exist, high to low. The previous
+                // implementation scanned every Y from ctx.minY() to ctx.maxY() for each
+                // of the 256 columns (~330-460 lookups per column, times 256, on the
+                // server thread for every chunk load), even though the world height is
+                // mostly null/empty sections. Sections holding no blocks cannot contain a
+                // light emitter, so iterating them directly is equivalent and far cheaper.
+                for (int storageIdx = storageArrays.length - 1; storageIdx >= 0; --storageIdx) {
+                    ExtendedBlockStorage section = storageArrays[storageIdx];
 
-                    if (light <= 0) {
+                    if (section == null || section == Chunk.NULL_BLOCK_STORAGE || section.isEmpty()) {
                         continue;
                     }
 
-                    int current = depthsupdate$blockLightAt(storageArrays, ctx, lx, y, lz);
+                    int sectionY = section.getYLocation();
 
-                    if (light > current) {
-                        depthsupdate$setBlockLightAt(storageArrays, ctx, lx, y, lz, light);
+                    for (int ly = 15; ly >= 0; --ly) {
+                        int y = sectionY + ly;
+
+                        if (y < ctx.minY() || y >= ctx.maxY()) {
+                            continue;
+                        }
+
+                        pos.setPos(pos.getX(), y, pos.getZ());
+                        int light = section.get(lx, ly, lz).getLightValue(worldIn, pos);
+
+                        if (light <= 0) {
+                            continue;
+                        }
+
+                        int current = section.getBlockLight(lx, ly, lz);
+
+                        if (light > current) {
+                            section.setBlockLight(lx, ly, lz, light);
+                        }
+
+                        // Always seed the flood with the block's own emission so its light can
+                        // still reach the cleared sections through any transparent path.
+                        queue.offer(depthsupdate$packLightPos(lx, y, lz, light));
                     }
-
-                    // Always seed the flood with the block's own emission so its light can
-                    // still reach the cleared sections through any transparent path.
-                    queue.offer(depthsupdate$packLightPos(lx, y, lz, light));
                 }
             }
         }

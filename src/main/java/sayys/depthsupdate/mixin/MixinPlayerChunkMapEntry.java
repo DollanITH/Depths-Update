@@ -1,7 +1,10 @@
 package sayys.depthsupdate.mixin;
 
+import java.util.Arrays;
 import java.util.List;
+
 import javax.annotation.Nullable;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.SPacketBlockChange;
@@ -12,6 +15,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraftforge.common.ForgeModContainer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -59,7 +63,7 @@ public abstract class MixinPlayerChunkMapEntry {
     public abstract void sendPacket(Packet<?> packetIn);
 
     @Shadow
-    protected abstract void sendBlockEntity(@Nullable TileEntity p_187273_1_);
+    protected abstract void sendBlockEntity(@Nullable TileEntity be);
 
     @Unique
     private HeightContext depthsupdate$ctx() {
@@ -82,8 +86,8 @@ public abstract class MixinPlayerChunkMapEntry {
     }
 
     /**
-     * Replaces vanilla blockChanged for extended dimensions only: vanilla packs
-     * Y into 8 bits, which cannot address negative or upper-extension coordinates.
+     * Replaces blockChanged for extended dimensions only: vanilla packs Y into
+     * 8 bits, which cannot address negative or upper-extension coordinates.
      * Vanilla dimensions keep the vanilla path, including its changedBlocks
      * field and SPacketMultiBlockChange batching.
      */
@@ -120,8 +124,8 @@ public abstract class MixinPlayerChunkMapEntry {
             }
 
             if (this.changes == this.depthsupdate$changedBlocks.length) {
-                this.depthsupdate$changedBlocks = java.util.Arrays.copyOf(this.depthsupdate$changedBlocks,
-                        this.depthsupdate$changedBlocks.length << 1);
+                this.depthsupdate$changedBlocks = Arrays.copyOf(this.depthsupdate$changedBlocks,
+                                                                this.depthsupdate$changedBlocks.length << 1);
             }
 
             this.depthsupdate$changedBlocks[this.changes++] = packed;
@@ -129,8 +133,8 @@ public abstract class MixinPlayerChunkMapEntry {
     }
 
     /**
-     * Replaces vanilla update for extended dimensions only, unpacking the 16-bit
-     * Y coordinates stored in the int[] above. Individual SPacketBlockChange
+     * Replaces update for extended dimensions only, unpacking the 16-bit Y
+     * coordinates stored in the int[] above. Individual SPacketBlockChange
      * packets stand in for SPacketMultiBlockChange, whose wire format has no
      * room for Y outside 0..255.
      */
@@ -150,13 +154,13 @@ public abstract class MixinPlayerChunkMapEntry {
                     int j = (short) (this.depthsupdate$changedBlocks[0] & 65535);
                     BlockPos blockpos = new BlockPos(i, j, k);
                     this.sendPacket(new SPacketBlockChange(this.playerChunkMap.getWorldServer(), blockpos));
-                    net.minecraft.block.state.IBlockState state = this.playerChunkMap.getWorldServer()
+                    IBlockState state = this.playerChunkMap.getWorldServer()
                             .getBlockState(blockpos);
 
                     if (state.getBlock().hasTileEntity(state)) {
                         this.sendBlockEntity(this.playerChunkMap.getWorldServer().getTileEntity(blockpos));
                     }
-                } else if (this.changes >= net.minecraftforge.common.ForgeModContainer.clumpingThreshold) {
+                } else if (this.changes >= ForgeModContainer.clumpingThreshold) {
                     this.sendPacket(new SPacketChunkData(this.chunk, this.changedSectionFilter));
                 } else {
                     for (int l = 0; l < this.changes; ++l) {
@@ -167,7 +171,7 @@ public abstract class MixinPlayerChunkMapEntry {
 
                         this.sendPacket(new SPacketBlockChange(this.playerChunkMap.getWorldServer(), blockpos1));
 
-                        net.minecraft.block.state.IBlockState state = this.playerChunkMap.getWorldServer()
+                        IBlockState state = this.playerChunkMap.getWorldServer()
                                 .getBlockState(blockpos1);
                         if (state.getBlock().hasTileEntity(state)) {
                             this.sendBlockEntity(this.playerChunkMap.getWorldServer().getTileEntity(blockpos1));

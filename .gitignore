@@ -23,6 +23,9 @@ CLAUDE.md
 # Cache of project
 .gradletasknamecache
 
+# Scratch space used by the offline javac verification harness (see tools/verify/README.md)
+_dsh_work/
+
 # Eclipse Gradle plugin generated files
 # Eclipse Core
 .project
