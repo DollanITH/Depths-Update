@@ -38,7 +38,11 @@ import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 import sayys.depthsupdate.core.ChunkCarveMarker;
 
-@Mixin(Chunk.class)
+// priority = 1100：SpongeForge 的 core ChunkMixin（mixinPriority 1000）会 @Overwrite
+// Chunk#setBlockState / bridge$fill 等，且注册顺序晚于本模组；若本 mixin 以默认优先级先应用，
+// 随后的 @Overwrite 会把这里的 @Inject 顶掉，导致 y<0 / y>=256 的放置与存储退回 Sponge 的原始
+// 逻辑（storageArrays[y >> 4]）。提高优先级让本 mixin 在 Sponge 之后应用，注入得以保留。
+@Mixin(value = Chunk.class, priority = 1100)
 public abstract class MixinChunk implements ChunkCarveMarker {
     @Shadow
     @Final
@@ -46,6 +50,7 @@ public abstract class MixinChunk implements ChunkCarveMarker {
 
     @Shadow
     @Final
+    @org.spongepowered.asm.mixin.Mutable
     private ExtendedBlockStorage[] storageArrays;
 
     @Shadow
@@ -206,9 +211,28 @@ public abstract class MixinChunk implements ChunkCarveMarker {
         depthsupdate$initContext.remove();
         HeightContext ctx = HeightManager.get(worldIn);
         if (ctx.isExtended()) {
+            depthsupdate$ensureStorageArrayCapacity(ctx);
             for (int i = 0; i < this.heightMap.length; ++i) {
                 this.heightMap[i] = ctx.minY();
             }
+        }
+    }
+
+    @Unique
+    private void depthsupdate$ensureStorageArrayCapacity(HeightContext ctx) {
+        int want = ctx.totalStorageSections();
+        if (this.storageArrays.length < want) {
+            ExtendedBlockStorage[] grown = new ExtendedBlockStorage[want];
+            System.arraycopy(this.storageArrays, 0, grown, 0, this.storageArrays.length);
+            this.storageArrays = grown;
+        }
+    }
+
+    @Inject(method = "getBlockStorageArray", at = @At("RETURN"))
+    private void depthsupdate$onGetStorageArray(CallbackInfoReturnable<ExtendedBlockStorage[]> cir) {
+        HeightContext ctx = depthsupdate$ctx();
+        if (ctx.isExtended()) {
+            depthsupdate$ensureStorageArrayCapacity(ctx);
         }
     }
 
@@ -290,11 +314,26 @@ public abstract class MixinChunk implements ChunkCarveMarker {
 
     @Inject(method = "getBlockState(III)Lnet/minecraft/block/state/IBlockState;", at = @At("HEAD"), cancellable = true)
     public void depthsupdate$getBlockState(final int x, final int y, final int z, CallbackInfoReturnable<IBlockState> cir) {
+        // Sponge 的 bridge$isInvalidYPosition 现在被放行到扩展范围，那么"该维度并未扩展"的世界
+        // 也必须在此兜底：越界直接返回空气，否则会落到原版 Chunk.getBlockState 的
+        // storageArrays[y >> 4]，y<0 时是负下标。
+        if (y < depthsupdate$ctx().minY() || y >= depthsupdate$ctx().maxY()) {
+            cir.setReturnValue(Blocks.AIR.getDefaultState());
+
+            return;
+        }
+
         if (!depthsupdate$isExtended()) {
             return;
         }
 
         HeightContext ctx = depthsupdate$ctx();
+        // 磁盘加载（readChunkFromNBT）会用一个新建的定长数组替换掉构造器里扩容过的 storageArrays，
+        // 而 ensureStorageArrayCapacity 原本只挂在构造器与 getBlockStorageArray() 上，
+        // 于是 get/setBlockState 直接读字段时数组仍是 16 长：y<0 的 toStorageIndex 得到 25 越界，
+        // get 返回空气（实体坠落）、set 返回 null（/setblock 报 commands.setblock.failed）。
+        // 在任何读写之前就地补齐容量，保证扩展 section 可寻址。
+        depthsupdate$ensureStorageArrayCapacity(ctx);
 
         if (this.world.getWorldType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
             IBlockState iblockstate = null;
@@ -328,10 +367,19 @@ public abstract class MixinChunk implements ChunkCarveMarker {
     @Inject(method = "setBlockState", at = @At("HEAD"), cancellable = true)
     public void depthsupdate$setBlockState(@NonNull BlockPos pos, IBlockState state, CallbackInfoReturnable<IBlockState> cir) {
         if (!depthsupdate$isExtended()) {
+            // 同上：非扩展维度若收到越界坐标，返回 null（等价于"无变化"）而不是让原版
+            // Chunk.setBlockState 去取 storageArrays[y >> 4] 的负下标。
+            int outY = pos.getY();
+            if (outY < depthsupdate$ctx().minY() || outY >= depthsupdate$ctx().maxY()) {
+                cir.setReturnValue(null);
+            }
+
             return;
         }
 
         HeightContext ctx = depthsupdate$ctx();
+        // 同上：磁盘加载后的数组可能只有 16 长，写入前先补齐，否则 chunkY=25 越界会直接返回 null。
+        depthsupdate$ensureStorageArrayCapacity(ctx);
 
         int i = pos.getX() & 15;
         int j = pos.getY();

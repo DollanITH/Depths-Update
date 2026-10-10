@@ -13,7 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(SPacketChunkData.class)
+// priority = 1100：SpongeForge 的 SPacketChunkDataMixin 会包装区块封包构建，需在其之后应用。
+@Mixin(value = SPacketChunkData.class, priority = 1100)
 public class MixinSPacketChunkData {
     @Unique
     private static final ThreadLocal<HeightContext> depthsupdate$ctx = ThreadLocal.withInitial(() -> HeightContext.VANILLA);

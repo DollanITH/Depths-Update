@@ -29,7 +29,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
-@Mixin(PlayerChunkMapEntry.class)
+// priority = 1100：SpongeForge 的 PlayerChunkMapEntryMixin 会重写 update/sendToPlayer 流程，
+// 需要本 mixin 在其之后应用，保证扩展高度的区块掩码与变更过滤注入保留。
+@Mixin(value = PlayerChunkMapEntry.class, priority = 1100)
 public abstract class MixinPlayerChunkMapEntry {
     @Shadow
     private boolean sentToPlayers;

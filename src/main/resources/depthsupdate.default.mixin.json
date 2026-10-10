@@ -10,6 +10,7 @@
   "target": "@env(DEFAULT)",
   "client": [
     "client.IMixinViewFrustum",
+    "client.MixinChunkClient",
     "client.MixinDebugRendererChunkBorder",
     "client.MixinEntityRenderer",
     "client.MixinGuiOverlayDebug",

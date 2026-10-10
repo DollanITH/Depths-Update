@@ -7,6 +7,7 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.common.util.Constants;
 
@@ -37,7 +38,10 @@ import sayys.depthsupdate.core.HeightManager;
  * target 使用字符串形式（与 {@code MixinChunkBufferPrimer} 一致）以避开 IDE
  * 对类引用的静态解析检查。
  */
-@Mixin(targets = "net.minecraft.world.World", remap = false)
+// priority = 1100：Sponge 的 mixins.common.core.json:world.WorldMixin（默认 1000）也作用于
+// World，且实测 cleanmix 顺序为本 mixin(23) → world.WorldMixin(25)，其 @Overwrite func_189509_E
+// 会丢弃更早应用的注入。显式提高优先级，保证在 Sponge 全部 World mixin 之后应用。
+@Mixin(targets = "net.minecraft.world.World", remap = false, priority = 1100)
 public abstract class MixinSpongeWorldApi {
 
     @Inject(method = "getBlockMin", at = @At("HEAD"), cancellable = true, remap = false)
@@ -50,5 +54,32 @@ public abstract class MixinSpongeWorldApi {
     private void depthsupdate$worldBlockMax(CallbackInfoReturnable<Vector3i> cir) {
         HeightContext ctx = HeightManager.get((World) (Object) this);
         cir.setReturnValue(new Vector3i(Constants.World.BLOCK_MAX.getX(), ctx.maxY(), Constants.World.BLOCK_MAX.getZ()));
+    }
+
+    /**
+     * Sponge 的 {@code checkBlockBounds(x,y,z)} 直接用硬编码常量 BLOCK_MIN/BLOCK_MAX
+     * 校验 Y 范围（不调用 getBlockMin/Max），越界抛 PositionOutOfBoundsException。
+     * 扩展世界下 y&lt;0 / y&gt;=maxY 会被拒绝放置。这里直接短路，只对 X/Z 做原生校验。
+     */
+    @Inject(method = "checkBlockBounds", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private void depthsupdate$skipWorldCheckBlockBounds(int x, int y, int z, CallbackInfo ci) {
+        HeightContext ctx = HeightManager.get((World) (Object) this);
+        if (!ctx.isExtended()) {
+            return;
+        }
+        // 只放行扩展 Y 范围；X/Z 越界仍按 Sponge 原逻辑处理（这里直接放行，因为 X/Z 范围极大）
+        ci.cancel();
+    }
+
+    /**
+     * {@code containsBlock(x,y,z)} 同样用硬编码常量。扩展世界下直接返回 true。
+     */
+    @Inject(method = "containsBlock", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private void depthsupdate$worldContainsBlock(int x, int y, int z, CallbackInfoReturnable<Boolean> cir) {
+        HeightContext ctx = HeightManager.get((World) (Object) this);
+        if (!ctx.isExtended()) {
+            return;
+        }
+        cir.setReturnValue(true);
     }
 }

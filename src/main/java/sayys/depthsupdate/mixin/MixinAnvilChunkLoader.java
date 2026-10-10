@@ -55,7 +55,9 @@ import net.minecraft.block.state.IBlockState;
  * - 吸收上游 startRead/endRead 的健壮性改进：每次进入都刷新 ctx，
  *   并用 Math.max(0, ...) 防止异常跳过 RETURN 处理器导致计数卡死。
  */
-@Mixin(AnvilChunkLoader.class)
+// priority = 1100：SpongeForge 的 core AnvilChunkLoaderMixin 会重写读写 NBT 的流程，
+// 需要本 mixin 在其之后应用，否则 readChunkFromNBT / writeChunkToNBT 上的扩展高度注入会被顶掉。
+@Mixin(value = AnvilChunkLoader.class, priority = 1100)
 public abstract class MixinAnvilChunkLoader {
 
     @Unique
@@ -171,6 +173,16 @@ public abstract class MixinAnvilChunkLoader {
         if (chunk == null) {
             return;
         }
+
+        // 原版 readChunkFromNBT 结尾会用 `new ExtendedBlockStorage[16]` 新建一个 16 长的数组
+        // （字节码 86: bipush 16 / istore 7，90: bipush 16 / anewarray）并覆盖构造器里已扩容的
+        // storageArrays。而下面只要命中 isCarved() 就会提前 return，唯一还能扩容的
+        // getBlockStorageArray() 就再也不会被调用 —— 结果是磁盘加载的区块数组停在 16 长：
+        // y<0 的 toStorageIndex 得到 25 越界，get 返回空气（实体坠落）、set 返回 null
+        // （/setblock 报 commands.setblock.failed）。
+        // 这里在提前 return 之前先调用一次 getBlockStorageArray()，触发 MixinChunk 的
+        // depthsupdate$onGetStorageArray -> ensureStorageArrayCapacity 把容量补回 29。
+        chunk.getBlockStorageArray();
 
         // Restore the persisted deep-carve marker before anything else can look at it.
         ChunkCarveMarker access = (ChunkCarveMarker) (Object) chunk;

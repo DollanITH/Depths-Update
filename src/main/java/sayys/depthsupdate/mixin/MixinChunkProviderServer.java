@@ -55,7 +55,9 @@ import sayys.depthsupdate.world.generation.river.UndergroundRiverGenerator;
 /**
  * Mixin用于修改ChunkProviderServer的行为
  */
-@Mixin({ChunkProviderServer.class})
+// priority = 1100：SpongeForge 的 ChunkProviderServerMixin 会介入区块生成流程，
+// 需要本 mixin 在其之后应用，保证 provideChunk 返回后的深度填充注入保留。
+@Mixin(value = {ChunkProviderServer.class}, priority = 1100)
 public class MixinChunkProviderServer {
 
     @Shadow
