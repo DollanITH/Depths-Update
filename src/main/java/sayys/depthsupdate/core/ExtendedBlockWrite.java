@@ -10,6 +10,8 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 
+import sayys.depthsupdate.util.BlockUtils;
+
 /**
  * 扩展高度区间（{@code y<0 || y>=256}）的方块写入，完整复刻原版
  * {@code Chunk.setBlockState} 的语义与副作用。
@@ -47,6 +49,7 @@ import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
  */
 public final class ExtendedBlockWrite {
 
+
     private ExtendedBlockWrite() {
     }
 
@@ -80,6 +83,16 @@ public final class ExtendedBlockWrite {
         int localY = y & 15;
         int localZ = pos.getZ() & 15;
         IBlockState oldState = chunk.getBlockState(pos);
+
+        // 深层矿石替换：等价于 MixinChunk#depthsupdate$setBlockState 里原来的
+        //     if (j < 0 || BlockUtils.isDeepslate(iblockstate)) state = getDeepslateVariant(state);
+        // 那句注入挂在 Chunk.setBlockState 上，而 SpongeForge 在 Chunk 上按名覆写了该方法，
+        // 注入不会执行；写入改由本类接管后必须把这一步带过来，否则 y<0 的矿石不再变成深层矿石
+        // （实测：深层出现普通煤矿/铁矿石，而不是 deepslate 变种）。
+        // 条件与原实现一致：位于负层，或原方块本身已是深板岩（此时在其上生成的矿石也要用变种）。
+        if (y < 0 || BlockUtils.isDeepslate(oldState)) {
+            newState = BlockUtils.getDeepslateVariant(newState);
+        }
 
         if (oldState == newState) {
             return null;
@@ -130,8 +143,35 @@ public final class ExtendedBlockWrite {
         }
 
         // 原版 464-507：★ onBlockAdded —— 铁轨连接、箱子合并、Railcraft 轨道等全靠它。
-        if (!world.isRemote && oldBlock != newBlock
-                && (!world.captureBlockSnapshots || newBlock.hasTileEntity())) {
+        //
+        // ★ 铁轨必须绕开 captureBlockSnapshots 这一层限制
+        //
+        // 原版条件是：
+        //     !isRemote && oldBlock != newBlock
+        //         && (!captureBlockSnapshots || hasTileEntity)
+        // 它的用意是：在"批量方块捕获"阶段（captureBlockSnapshots == true）跳过
+        // onBlockAdded，以免副作用被重复执行。对于"要靠 onBlockAdded 建立自身状态"
+        // 的方块，原版本假定它们都有方块实体（hasTileEntity），因而不受影响。
+        //
+        // 但铁轨（BlockRailBase 及其子类，含 Railcraft 轨道）恰好是反例：
+        // 它的连接形状完全由 onBlockAdded -> updateDir -> new Rail().place() 计算，
+        // 而 hasTileEntity == false。于是在捕获阶段条件不成立、onBlockAdded 被跳过，
+        // 铁轨形状就永远停在 getStateForPlacement 给出的玩家朝向 —— 表现即"不连接"。
+        //
+        // 实测（深层放置铁轨，服务端侧）：
+        //     isRemote=false  changed=true
+        //     captureBlockSnapshots=true   hasTileEntity=false
+        //     => callOnBlockAdded=false      ← 于是 place() 从未执行
+        //
+        // 因此这里对铁轨单独放行：它没有方块实体，onBlockAdded 只是<b>计算并写回自己的
+        // 形状</b>，不产生可被重复捕获的外部副作用，绕过捕获限制是安全的。
+        // 其它方块的行为保持与原版完全一致。
+        boolean isRail = newBlock instanceof net.minecraft.block.BlockRailBase;
+
+        boolean callOnBlockAdded = !world.isRemote && oldBlock != newBlock
+                && (isRail || !world.captureBlockSnapshots || newBlock.hasTileEntity());
+
+        if (callOnBlockAdded) {
             newBlock.onBlockAdded(world, pos, newState);
         }
 
@@ -150,18 +190,79 @@ public final class ExtendedBlockWrite {
         }
 
         chunk.markDirty();
-        // markAndNotifyBlock 里通知客户端 / 通知邻居都被 flags 卡着（字节码 9-13 与 58-62），
-        // 而扩展区间没有别的东西会补这两步，因此显式补齐。
+        // 客户端同步与邻居通知都交给原版的 markAndNotifyBlock，并沿用它的 flags 语义：
+        //   9-13 : (flags & 2) != 0 → notifyBlockUpdate（同步客户端）
+        //  58-62 : (flags & 1) != 0 → notifyNeighborsRespectDebug（通知邻居）
+        // 这正是原版 World.setBlockState 的收尾动作，行为完全一致。
         world.markAndNotifyBlock(pos, chunk, oldState, newState, flags);
         world.notifyBlockUpdate(pos, oldState, newState, flags);
 
-        for (EnumFacing facing : EnumFacing.values()) {
-            world.neighborChanged(pos.offset(facing), oldBlock, pos);
-        }
+        // ★ 这里【不能】再补一次邻居通知。
+        //
+        // markAndNotifyBlock 已经按原版 flags 语义通知过邻居（flags & 1）。
+        // 早先又无条件调了一次 depthsupdate$notifyNeighborsAtBlockLevel，
+        // 等于每次写入把邻居通知两遍。对液体方块是致命的：
+        //
+        //   BlockStaticLiquid.neighborChanged -> updateLiquid -> setBlockState
+        //     -> (本方法) 再通知两次 -> 邻居液体再次 updateLiquid -> ...
+        //
+        // 每次写入放大成 2 倍，很快就变成指数级级联。实测后果是看门狗崩服：
+        //   ServerHangWatchdog: single server tick took 60.01 seconds
+        //     at World.checkLight
+        //     at ExtendedBlockWrite.setBlockState:175
+        //     at BlockStaticLiquid.updateLiquid
+        //     at ExtendedBlockWrite.depthsupdate$notifyNeighborsAtBlockLevel:216
+        //     at ExtendedBlockWrite.setBlockState:172
+        //
+        // 原版语义就是"由 markAndNotifyBlock 一次性按 flags 通知"，照做即可。
 
         // SKY + BLOCK 两个通道一次覆盖（内部即两次 checkLightFor）。
         world.checkLight(pos);
 
         return oldState;
+    }
+
+    /**
+     * 在<b>方块层</b>通知六个邻居，绕过 SpongeForge 的阶段包装。
+     *
+     * <p>为什么不直接调 {@code world.neighborChanged(...)}：SpongeForge 的
+     * {@code PhaseTracker} 会在 {@code WorldServer.func_190524_a}（= {@code World.neighborChanged}）
+     * 上包一层 {@code Tick{NeighborNotification}} 阶段并做栈校验。扩展区间的写入发生在
+     * 生成期/事件期等嵌套场景里，重入这个包装会让它判定阶段栈被破坏，随后对每个被通知的
+     * 方块打印一整段 {@code corrupted phase context providers} + 阶段栈转储
+     * （实测岩浆 tick 时每秒数百行 ERROR）。
+     *
+     * <p>但完全不通知又是错的：实测扩展区间里"打掉支撑后告示牌/铁轨不掉落、浮空"，
+     * 以及 Railcraft 轨道"放下后立即消失"（它靠 onBlockAdded/neighborChanged 里的支撑判定
+     * 决定去留），都指向同一个缺口 —— 扩展区间缺少邻居更新。
+     *
+     * <p>折中做法：直接调用 {@code IBlockState.neighborChanged(...)}，它转发到
+     * {@code Block.neighborChanged(state, world, pos, block, fromPos)}，
+     * <b>不经过 {@code World.neighborChanged}</b>，因此不触碰 Sponge 的阶段栈，
+     * 又能真正把"邻居变了"这件事送到方块手里。代价是不触发 Forge 的
+     * {@code onNeighborNotify} 事件 —— 对扩展区间来说，这比"完全不通知"要正确得多。
+     */
+    private static void depthsupdate$notifyNeighborsAtBlockLevel(World world, BlockPos pos, Block oldBlock) {
+        for (EnumFacing facing : EnumFacing.values()) {
+            BlockPos neighborPos = pos.offset(facing);
+
+            // 只取方块状态，不调用 world.getBlockState 之外的任何 Sponge 钩子。
+            IBlockState neighborState = world.getBlockState(neighborPos);
+            Block neighborBlock = neighborState.getBlock();
+
+            // 空气不需要邻居通知（原版在此也会跳过大部分空气）。
+            if (neighborBlock == Blocks.AIR) {
+                continue;
+            }
+
+            try {
+                // 关键：这是 IBlockState.neighborChanged → Block.neighborChanged，
+                // 不是 World.neighborChanged，因此绕过 Sponge 的 PhaseTracker 包装。
+                neighborState.neighborChanged(world, neighborPos, oldBlock, pos);
+            } catch (Throwable ignored) {
+                // 单个邻居抛异常不应影响这次方块写入本身，静默跳过
+                // （与已完成的光照/客户端同步相比，这条通知是尽力而为）。
+            }
+        }
     }
 }

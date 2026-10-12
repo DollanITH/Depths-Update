@@ -43,3 +43,5 @@ _dsh_work/
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+/.which/
+/tools/

@@ -48,15 +48,16 @@ import sayys.depthsupdate.core.HeightManager;
 @Mixin(value = Vec3i.class, priority = 1100)
 public abstract class MixinSpongeVec3iHeight {
 
-    @Inject(method = "bridge$isInvalidYPosition", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    @Inject(method = "bridge$isInvalidYPosition", at = @At("HEAD"), cancellable = true, remap = false, require = 1)
     private void depthsupdate$isInvalidYPosition(CallbackInfoReturnable<Boolean> cir) {
         HeightContext ctx = HeightManager.getMaxContext();
+
+        int y = ((Vec3i) (Object) this).getY();
 
         if (!ctx.isExtended()) {
             return;
         }
 
-        int y = ((Vec3i) (Object) this).getY();
         cir.setReturnValue(y < ctx.minY() || y >= ctx.maxY());
     }
 }

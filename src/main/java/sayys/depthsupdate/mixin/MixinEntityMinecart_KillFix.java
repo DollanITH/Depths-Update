@@ -47,6 +47,14 @@ public abstract class MixinEntityMinecart_KillFix extends Entity {
      */
     @ModifyConstant(method = "onUpdate", constant = @Constant(doubleValue = -64.0D), require = 1)
     private double getDeathY(double originalY) {
-        return (HeightManager.getMinY(world)) + originalY;
+        // ★ 修正: 原来写的是 getMinY(world) + originalY，即 (-64) + (-64) = -128，
+        // 语义上是"双重相减"（原版本意是"相对 minY 的偏移"）。数值恰好与配置里的
+        // Void Damage Level 一致，所以一直没暴露问题，但表达式本身是错的。
+        //
+        // 这里直接取该维度的虚空伤害线 —— 那正是"实体/载具何时该被判为坠入虚空"的
+        // 唯一权威来源（overworld 配置为 -128）。若维度未配置则回退到原值 -64。
+        int level = HeightManager.getVoidDamageLevel(world);
+
+        return level == 0 ? originalY : level;
     }
 }

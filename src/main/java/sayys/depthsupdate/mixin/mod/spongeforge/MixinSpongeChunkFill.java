@@ -62,6 +62,14 @@ public abstract class MixinSpongeChunkFill {
         int minY = ctx.minY();
         int maxY = ctx.maxY();
 
+        // 【实测结论】primer 的 Y 就是世界 Y，偏移为 0。
+        // 运行时探针（x=0,z=0 列）结果：
+        //   y=0   asLocal=bedrock     y=1 asLocal=stone     y=60 asLocal=stone    y=70 asLocal=air
+        //   asWorld(local=64)=dirt  →  说明读 world Y=0 必须传局部 Y=0，而不是 0-minY=64
+        // 即 MixinChunkPrimer 的 getBlockIndex 已把 (y - minY) 做进索引，
+        // 调用方仍然传【世界 Y】。曾误改为 y-minY，导致读取整体上移 64 格，两侧全坏。
+        int primerOffsetY = 0;
+
         for (int x = 0; x < 16; ++x) {
             for (int z = 0; z < 16; ++z) {
                 // 0..255 已由 Sponge 的 bridge$fill 处理，这里只补扩展高度（负层 / 上层）。
@@ -70,9 +78,15 @@ public abstract class MixinSpongeChunkFill {
                         continue;
                     }
 
-                    IBlockState state = primer.getBlockState(x, y, z);
+                    int localY = y - primerOffsetY;
 
-                    if (state.getMaterial() == Material.AIR) {
+                    if (localY < 0) {
+                        continue;
+                    }
+
+                    IBlockState state = primer.getBlockState(x, localY, z);
+
+                    if (state == null || state.getMaterial() == Material.AIR) {
                         continue;
                     }
 
