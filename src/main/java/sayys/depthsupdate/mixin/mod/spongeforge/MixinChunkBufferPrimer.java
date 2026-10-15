@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArgs;
 import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
+import sayys.depthsupdate.core.ChunkGenContext;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
@@ -34,7 +35,7 @@ public abstract class MixinChunkBufferPrimer {
     private void depthsupdate$yThroughOnSet(Args args, int x, int y, int z, IBlockState state) {
         // buffer.setBlock(min.x+x, y, min.z+z, state)：y 保持世界坐标，不加 min.y，
         // 但钳到缓冲有效区 [minY+1, maxY-1]（写不碰基岩底），防洞穴数学走到世界底以下。
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         int lo = ctx.minY() + 1;
         int hi = ctx.maxY() - 1;
         args.set(1, Math.max(lo, Math.min(y, hi)));
@@ -45,9 +46,10 @@ public abstract class MixinChunkBufferPrimer {
     private void depthsupdate$yThroughOnGet(Args args, int x, int y, int z) {
         // buffer.getBlock(min.x+x, y, min.z+z)：y 保持世界坐标，不加 min.y，
         // 但钳到缓冲有效区 [minY, maxY-1]，防读到底界以下崩溃。
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         int lo = ctx.minY();
         int hi = ctx.maxY() - 1;
         args.set(1, Math.max(lo, Math.min(y, hi)));
     }
 }
+

@@ -41,6 +41,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import sayys.depthsupdate.DepthsUpdateConfig;
+import sayys.depthsupdate.core.ChunkGenContext;
 import sayys.depthsupdate.core.DeepFill;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
@@ -101,8 +102,64 @@ public class MixinChunkProviderServer {
     @Unique
     private static final int DEPTHSUPDATE_MAX_PROCESSED_CHUNKS = 8192;
 
+    /**
+     * 已在本会话内为其补做过"深层光照播种"的 chunk 坐标（(x<<32)|z）。
+     *
+     * <h2>为什么需要【独立于】processedChunks 的第二套去重</h2>
+     * {@code isCarved()} 为真的区块走的是 {@code onProvideChunk} 里最靠前的
+     * 那条 early-return 路径（读盘路径会无条件置位该标记），
+     * 根本到不了 {@link #depthsupdate$processedChunks} 的去重逻辑。
+     *
+     * <p>而 {@code seedExtendedLight()} 自身的幂等标志
+     * （{@code extendedLightSeeded}）<b>只在真的播种到光源时才置位</b>；
+     * 对"深层没有发光方块的区块"（绝大多数！）它永远不会置位，
+     * 于是每次 {@code provideChunk} 都会重扫 256 列 ——
+     * 而本路径实测命中 1052 万次，TPS 会直接崩掉。
+     *
+     * <p>因此这里在调用侧再做一次去重，保证每区块每会话只播种一次。
+     * 上界与 {@code processedChunks} 同源：触顶即整体清空
+     * （最坏情况是重复播种，而播种本身幂等，安全）。
+     *
+     * <p>用 {@code synchronized} 而非并发集合：本方法虽主要在 Server thread
+     * 上执行，但 Sponge 的异步光照/区块加载可能从别的线程进入，
+     * 且 {@code HashSet} 非线程安全。该路径不是热路径（每区块只走一次），
+     * 锁开销可忽略。
+     */
+    @Unique
+    private final java.util.Set<Long> depthsupdate$lightSeededChunks = new java.util.HashSet<>();
+
     public MixinChunkProviderServer() {
         super();
+    }
+
+    /**
+     * 进入区块生成时记录"当前正在为哪个维度生成"。
+     *
+     * <h2>为什么必须记录</h2>
+     * 生成管线里有些地方<b>拿不到 World</b>，却必须按维度算高度范围：
+     * {@code ChunkPrimer.getBlockIndex(int,int,int)} 与 Sponge 的
+     * {@code ChunkPrimerBuffer.getBlockStart(int,int)} 都是 <b>static</b>。
+     *
+     * <p>它们此前一律读 {@code HeightManager.getMaxContext()} ——
+     * "所有维度中范围最大的那个"，而不是当前维度的。本服配置为：
+     * <pre>
+     *   dim 0 (主世界)   : minY = -64, maxY = 400   &lt;- 即 maxContext
+     *   dim 3 (formwork) : minY =   0, maxY = 320
+     * </pre>
+     * 于是生成 formwork 时缓冲从 -64 起、长度 464，比该维度实际基准（0）<b>低了 64 格</b>，
+     * 超平坦地形被写到世界之外 —— 现象正是"服务端该维度完全虚空、客户端却正常"
+     * （客户端无 Sponge，不经过 {@code ChunkPrimerBuffer}）。主世界恰好等于 maxContext，
+     * 所以自身一直正常，掩盖了这个 bug。
+     *
+     * <p>{@code provideChunk} 是所有平台区块生成的必经入口，且持有 {@code this.world}，
+     * 因此在这里压栈最可靠；RETURN 处出栈。
+     */
+    @Inject(
+            method = "provideChunk(II)Lnet/minecraft/world/chunk/Chunk;",
+            at = @At("HEAD")
+    )
+    private void depthsupdate$enterChunkGeneration(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
+        ChunkGenContext.push(this.world);
     }
 
     /**
@@ -119,6 +176,9 @@ public class MixinChunkProviderServer {
             at = @At("RETURN")
     )
     private void depthsupdate$onProvideChunk(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
+        // 生成阶段结束，先出栈（下面的后处理不再属于"该维度的生成期"）。
+        ChunkGenContext.pop();
+
         Chunk chunk = cir.getReturnValue();
         if (chunk == null) {
             return;
@@ -154,7 +214,71 @@ public class MixinChunkProviderServer {
         // 玩家在 y<0 放置的每一个方块都覆盖回石头/深板岩、并把洞穴路径里的建筑挖掉 ——
         // 这正是"每次进存档 -Y 区块被重置"的根因。carve 标记在这里起与加载路径同样的
         // 守卫作用：已定稿的区块直接跳过。
+        //
+        // ★★★ 但是："跳过重填/重雕" 不等于 "跳过光照" ★★★
+        //
+        // 实测（2026-10-15，运行时计数）：
+        //   entered=10523717 | NOT_TARGET=0 | SKIP_CARVED=10523717
+        //   SKIP_DEDUP=0 | COMPLETED=0
+        //   扫描范围内 121 个区块【全部】走 SKIP_CARVED，COMPLETED 恒为 0。
+        //
+        // 即：深层光照播种【从来没有执行过】。根因是 isCarved 承担了两个互相
+        // 冲突的职责：
+        //
+        //   职责 A（雕刻守卫）：MixinAnvilChunkLoader 读盘时【必须立即】置位，
+        //                       否则重新雕刻会删掉玩家沿洞穴放的方块；
+        //   职责 B（光照门禁）：  光照播种恰恰需要在读盘后【仍然执行】。
+        //
+        // 读盘路径无条件置位 A（见 MixinAnvilChunkLoader:240，注释说明"无论是否
+        // 真的挖到东西都算定稿"），于是 B 被一并挡掉 —— 这就是"深层岩浆整块不亮、
+        // 且按 LastUpdate 批次成片出现"的根因（播种是按整区块 256 列做的，
+        // 跳过即整块跳过；孤立单格岩浆因无邻居代为传播，症状最刺眼）。
+        //
+        // 修法：把光照播种从 isCarved 守卫下【移出来】。
+        //
+        // ⚠️ 注意：不要以为"播种自身幂等"就可以随便重复调用 ——
+        // extendedLightSeeded 标志【只在真的播种到光源时才置位】，
+        // 对深层没有发光方块的区块它永远不会置位。因此必须在调用侧
+        // 自己保证"每区块只播种一次"（见下面的 lightSeededChunks）。
         if (((ChunkCarveMarker) (Object) chunk).depthsupdate$isCarved()) {
+            // ★ 已定稿的区块：不重填、不重雕，但【仍然需要播种深层光照】。
+            //
+            // 注意顺序：必须先让发光段候选缓存失效。读盘路径是直接写
+            // ExtendedBlockStorage 的（不经过 setBlockState），因此不会触发
+            // MixinChunk#setBlockState 里的缓存失效；不显式失效的话，
+            // 这次播种会复用旧的候选列表，孤立光源依旧扫不到。
+            //
+            // ★★ 必须在这里做【调用侧去重】★★
+            //
+            // provideChunk 在生成期会被极高频调用（实测本路径命中 1052 万次）。
+            // 而 seedExtendedLight 的幂等标志 extendedLightSeeded 只在
+            // totalSeeded > 0 时才置位 —— 对"深层没有发光方块的区块"
+            // （绝大多数区块！）该标志【永远不会】置位，
+            // 于是每次调用都会把 256 列完整扫一遍，TPS 会直接崩掉。
+            //
+            // 因此这里用一个按会话维护的集合把"每区块只播种一次"，
+            // 与下方 processedChunks 的思路一致，但独立开来：
+            // 因为 isCarved 的区块走的是上面这条 early-return 路径，
+            // 根本到不了 processedChunks 的去重。
+            long seedKey = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
+            boolean firstSeed;
+
+            synchronized (this.depthsupdate$lightSeededChunks) {
+                if (this.depthsupdate$lightSeededChunks.size() >= DEPTHSUPDATE_MAX_PROCESSED_CHUNKS) {
+                    this.depthsupdate$lightSeededChunks.clear();
+                }
+
+                firstSeed = this.depthsupdate$lightSeededChunks.add(seedKey);
+            }
+
+            if (firstSeed) {
+                sayys.depthsupdate.core.ExtendedLightSeeder seeder =
+                        (sayys.depthsupdate.core.ExtendedLightSeeder) (Object) chunk;
+
+                seeder.depthsupdate$invalidateEmitterCache();
+                seeder.depthsupdate$seedExtendedLight();
+            }
+
             return;
         }
 
@@ -270,6 +394,34 @@ public class MixinChunkProviderServer {
         }
 
         chunk.generateSkylightMap();
+
+        // ★ 深层填充刚刚【直接写】了 ExtendedBlockStorage（石头/深板岩/岩浆等），
+        // 而这条路径不经过 Chunk.setBlockState，因此不会触发那条路径上的
+        // "发光段候选缓存"失效。若不显式失效，填充之前算出的空候选列表会被继续复用，
+        // 孤立光源（例如单格岩浆）就永远不会被播种 —— 连它自身都不发光。
+        ((sayys.depthsupdate.core.ExtendedLightSeeder) (Object) chunk)
+                .depthsupdate$invalidateEmitterCache();
+
+        // ★ 深层填充到此完成 —— 必须在这里补一次「整区块深层光照播种」。
+        //
+        // 反汇编 ChunkProviderServer.provideChunk 的顺序是：
+        //     3: loadChunk            （磁盘命中则直接返回）
+        //    24: generateChunk        （新生成：只有浅层地形）
+        //   132: chunk.onLoad()       ★ onLoad 在这里
+        // 而本模组的深层填充挂在 provideChunk 的 RETURN 上 —— 即 onLoad【之后】。
+        //
+        // 于是对新生成的区块：onLoad 里的播种先跑，此时深层段还不存在，
+        // extendedEmitterSections() 返回空，什么也没播；随后深层填充才创建出
+        // 含岩浆的深层段，但已经没人再播种了 —— 新探索区域的深层岩浆旁边
+        // 因此永远是黑的（实测 /depthsupdate scan 报出 920 处 dark air）。
+        //
+        // 玩家以前去过、从磁盘加载的区块反而正常，因为那条路径上深层段
+        // 在 onLoad 之前就已从 NBT 恢复。
+        //
+        // 这里的调用是幂等的：已播过种、或深层段仍为空时会立即返回。
+        ((sayys.depthsupdate.core.ExtendedLightSeeder) (Object) chunk)
+                .depthsupdate$seedExtendedLight();
     }
 
 }
+

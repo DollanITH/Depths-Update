@@ -21,6 +21,7 @@
     "nothirium.MixinNothiriumDirectionUp",
     "nothirium.MixinNothiriumRenderChunk",
     "nothirium.MixinNothiriumWorldUtil",
+    "optifine.MixinOptiFineDisableRenderRegions",
     "optifine.MixinOptiFineRenderChunk",
     "optifine.MixinOptiFineRenderChunkUtils",
     "optifine.MixinOptiFineShaders",

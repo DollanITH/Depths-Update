@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
+import sayys.depthsupdate.core.ChunkGenContext;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
@@ -33,7 +34,7 @@ public abstract class MixinChunkPrimerBuffer {
             at = @At(value = "INVOKE",
                     target = "Lorg/spongepowered/common/util/gen/ChunkPrimerBuffer;getBlockStart(II)Lcom/flowpowered/math/vector/Vector3i;"))
     private static Vector3i depthsupdate$extendStart(int chunkX, int chunkZ) {
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         int minY = ctx.isExtended() ? ctx.minY() : 0;
         return new Vector3i(chunkX * 16, minY, chunkZ * 16);
     }
@@ -42,7 +43,7 @@ public abstract class MixinChunkPrimerBuffer {
             at = @At(value = "FIELD",
                     target = "Lorg/spongepowered/common/world/storage/SpongeChunkLayout;CHUNK_SIZE:Lcom/flowpowered/math/vector/Vector3i;"))
     private static Vector3i depthsupdate$extendSize() {
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         if (!ctx.isExtended()) {
             return new Vector3i(16, 256, 16);
         }
@@ -59,13 +60,14 @@ public abstract class MixinChunkPrimerBuffer {
      */
     @ModifyVariable(method = "getBlock", at = @At("HEAD"), index = 2)
     private int depthsupdate$clampGetY(int y) {
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         return Math.max(ctx.minY(), Math.min(y, ctx.maxY() - 1));
     }
 
     @ModifyVariable(method = "setBlock", at = @At("HEAD"), index = 2)
     private int depthsupdate$clampSetY(int y) {
-        HeightContext ctx = HeightManager.getMaxContext();
+        HeightContext ctx = ChunkGenContext.currentOr(HeightManager.getMaxContext());
         return Math.max(ctx.minY(), Math.min(y, ctx.maxY() - 1));
     }
 }
+

@@ -43,7 +43,7 @@ import sayys.depthsupdate.core.ChunkCarveMarker;
 // 随后的 @Overwrite 会把这里的 @Inject 顶掉，导致 y<0 / y>=256 的放置与存储退回 Sponge 的原始
 // 逻辑（storageArrays[y >> 4]）。提高优先级让本 mixin 在 Sponge 之后应用，注入得以保留。
 @Mixin(value = Chunk.class, priority = 1100)
-public abstract class MixinChunk implements ChunkCarveMarker {
+public abstract class MixinChunk implements ChunkCarveMarker, sayys.depthsupdate.core.ExtendedLightSeeder {
     @Shadow
     @Final
     private World world;
@@ -382,37 +382,56 @@ public abstract class MixinChunk implements ChunkCarveMarker {
 
         depthsupdate$scanExtendedColumn(x, z, topFilled, minY, cursor);
     }
-    /** 每次完整 checkLight() 结束时标记"扩展区间已建立"，避免每 tick 重算。 */
+
+    /**
+     * 每次完整 {@code checkLight()V} 结束时，标记"扩展区间已建立"。
+     *
+     * <h2>★ 为什么必须检查 {@link #depthsupdate$extendedEmitterSections()} 是否非空</h2>
+     * 这个标志的作用是"别每 tick 重做一遍代价高昂的播种 BFS"，
+     * 因此只有在<b>确实存在可播种的发光段、并且这一轮真的扫过</b>时才该置位。
+     *
+     * <p>此前是<b>无条件</b>置 {@code true}，于是出现这样的顺序：
+     * <pre>
+     *   1. 区块刚加载 / 深层段尚未填充 -> extendedEmitterSections() 返回【空】
+     *      -> scanExtendedColumn 立即 return，一列都没播种
+     *   2. checkLight()V 返回 -> 无条件置 extendedLightBuilt = true
+     *   3. 之后深层段才被填入岩浆 -> setBlockState 只在【扩展区间变化】时重置该标志，
+     *      而"段被填充"往往发生在生成阶段、并不经过该路径
+     *   4. 结果：这一片的深层光照【永远】是 0 —— 正是实测的
+     *      "岩浆旁边一片漆黑、dark air 散落在多个区块"
+     * </pre>
+     *
+     * <p>加入了空判定后：只要深层段还没准备好，就不置位，
+     * 后续的 {@code checkLight()} 会继续尝试播种，直到真正扫过为止。
+     * 这不会重新引入每 tick 重算 —— 因为一旦段存在且扫过一次，标志就会置位。
+     */
     @Inject(method = "checkLight()V", at = @At("RETURN"))
     private void depthsupdate$markExtendedLightBuilt(CallbackInfo ci) {
+        // 没有任何可播种的发光段时不置位：留待段填充后的下一次 checkLight 再试。
+        if (depthsupdate$extendedEmitterSections().length == 0) {
+            return;
+        }
+
         depthsupdate$extendedLightBuilt = true;
     }
 
     /**
-     * 扫描本列的**扩展区间**（y&lt;0 与 y&gt;=256），为发光方块补做播种。
+     * 扫描本列的深层发光方块并播种。
      *
-     * <p>为什么需要单独一趟：上面的循环沿用了原版的范围与提前退出条件，
-     * 它天然不覆盖 minY..0 与 256..maxY。而这两个区间正是本模组存在的意义所在，
-     * 里面可能有玩家放置或世界生成的光源，必须处理。
-     *
-     * <p>性能（关键）：本方法由 {@code checkLight(II)} 调用，而后者在每次区块加载时
-     * 会被 {@code Chunk.checkLight()} 调 256 次、{@code checkLightSide()} 再调 4×16 次，
-     * 合计约 320 次/区块。因此这里**绝不能**每次都遍历全部 29 个 segment
-     * （那是 9280 次 isEmpty 检查，实测会造成明显的 TPS 下降）。
-     *
-     * <p>做法：用 {@link #depthsupdate$extendedEmitterSections} 缓存"哪些扩展 segment
-     * 里可能有发光方块"这个列表，只在区块内容变化时重算一次。绝大多数区块
-     * 这个列表是**空的**（深层只有石头/岩浆，而岩浆段会被算进来一次），
-     * 于是正常路径退化为"读一个缓存字段然后直接返回"。
+     * @return 本列实际播种的发光方块数量。调用方用它判断"这次是否真的做了事" ——
+     *         深层填充之前段里还没有岩浆，返回 0；填充之后才会返回 &gt; 0。
+     *         这一点对 {@link #depthsupdate$seedExtendedLight()} 的幂等标志至关重要：
+     *         若只看"段是否存在"就置位，会在深层填充前误判为"已播种"。
      */
-    @org.spongepowered.asm.mixin.Unique
-    private void depthsupdate$scanExtendedColumn(int localX, int localZ, int topFilled, int minY,
+    private int depthsupdate$scanExtendedColumn(int localX, int localZ, int topFilled, int minY,
             BlockPos.MutableBlockPos cursor) {
         ExtendedBlockStorage[] candidates = depthsupdate$extendedEmitterSections();
 
         if (candidates.length == 0) {
-            return;
+            return 0;
         }
+
+        int seeded = 0;
 
         HeightContext ctx = depthsupdate$ctx();
         int maxY = ctx.maxY();
@@ -451,7 +470,10 @@ public abstract class MixinChunk implements ChunkCarveMarker {
                 // 匹配失败会让服务器无法启动），所以这里改为**自己传播**，
                 // 完全不依赖原版那套带高度假设的 BFS。
                 int emission = sec.get(localX, ly, localZ).getLightValue(this.world, cursor);
+
                 depthsupdate$propagateBlockLight(cursor.getX(), y, cursor.getZ(), emission);
+
+                seeded++;
 
                 // 让客户端重算这一小片的光照。
                 //
@@ -462,6 +484,8 @@ public abstract class MixinChunk implements ChunkCarveMarker {
                 this.world.notifyLightSet(cursor);
             }
         }
+
+        return seeded;
     }
 
 
@@ -483,6 +507,7 @@ public abstract class MixinChunk implements ChunkCarveMarker {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         pos.setPos(startX, startY, startZ);
         depthsupdate$writeLightRaw(startX, startY, startZ, emission);
+
 
         // 简单队列：交替存 x,y,z,light 四个 int。
         // 注意 capacity 必须与数组长度一致，且按"每项 4 个 int"计算，
@@ -537,33 +562,25 @@ public abstract class MixinChunk implements ChunkCarveMarker {
                 IBlockState neighbor = this.world.getBlockState(pos);
                 int opacity = neighbor.getLightOpacity(this.world, pos);
 
-                // ★ 深层必须改走 Chunk 自己的读取通路，不能用 world.getBlockState。
+                // ★ 恢复为只用 world.getBlockState，不再拿 Chunk 通路去"纠正"它。
                 //
-                // 实测证据（SpongeForge 服务端，当时的诊断 16/16 全部落在最深段 storageIdx=28）：
-                //   同取 (935,-54,-912) 这一格：
-                //       world 通路 -> opacity=255，方块报成 depthsupdate:deepslate
-                //       chunk 通路 -> opacity=0（即空气）
-                // 同一格 `(935,-54,-912)` 两条通路给出完全不同的方块，而该处
-                // 玩家肉眼可见是岩浆/空气（不是深板岩）。也就是说
-                // world.getBlockState(pos) 在深层返回了**错误的方块**：
-                // 它把可透光的格子报成 opacity=255，于是 BFS 在这里 continue，
-                // 那片岩浆永远照不亮周围 —— 正是"有些岩浆没有光晕"的直接原因。
+                // 这里曾经是这样写的：
+                //     int chunkOpacity = this.getBlockLightOpacity(nx, ny, nz);
+                //     if (chunkOpacity != opacity) opacity = chunkOpacity;
+                // 依据是一次诊断：同一格 (935,-54,-912) 上
+                // "world 通路报 deepslate/opacity=255、chunk 通路报空气/opacity=0"。
                 //
-                // Chunk.getBlockLightOpacity(x,y,z) 内部走 Chunk.getBlockState(III)，
-                // 而那个方法由本 mixin（priority 1100）接管，索引换算正确
-                // （toStorageIndex(-54) == 28 与探针一致），因此它是可信通路。
+                // 但那个对比【本身是无效的】：Chunk.getBlockLightOpacity(x,y,z) 是
+                // Chunk 自己的方法，内部用 (x & 15, y & 15, z & 15) 索引【本区块】的
+                // 存储段。对跨区块坐标 nx（例如 BFS 在区块 14 上跑到 nx=223，那属于
+                // 区块 13），223 & 15 == 15 会把读取落到【本区块的第 15 列】——
+                // 读的根本不是同一格，两者不同是必然的，不能作为"world 通路错误"的证据。
                 //
-                // 注意 getLightOpacity 有两个重载：带 (world,pos) 的版本可能被
-                // 具体方块覆盖，因此这里同时读该方块状态自己的无参值，取较大者，
-                // 语义上等价于"这个方块到底挡不挡光"。
-                int chunkOpacity = this.getBlockLightOpacity(nx, ny, nz);
-
-                if (chunkOpacity != opacity) {
-                    // 两条通路不一致时以 Chunk 通路为准（见上面的实测证据）。
-                    opacity = chunkOpacity;
-                }
-
-                // 完全不透光的方块不参与传播（与原版一致）。
+                // 而 world.getBlockState 会正确地定位到目标区块，是本 BFS 唯一正确的
+                // 跨区块读取方式。实测症状也支持这一点：把读取换成 Chunk 通路之后，
+                // 出现了成片的"区块最西一列（localX == 0）恒为 0"——
+                // 例如 x=224（14*16）那一列长期是 dark air，因为它的邻居 x=223
+                // 属于上一个区块，正好命中上面那个越界式的错误读取。
                 if (opacity >= 255) {
                     continue;
                 }
@@ -583,7 +600,9 @@ public abstract class MixinChunk implements ChunkCarveMarker {
                 // 原版批量光照（generateSkylightMap）同样直接写数组、最后统一同步。
                 //
                 // 写入前先比较，避免重复入队导致队列膨胀。
-                if (depthsupdate$readLightRaw(nx, ny, nz) >= target) {
+                int existing = depthsupdate$readLightRaw(nx, ny, nz);
+
+                if (existing >= target) {
                     continue;
                 }
 
@@ -616,6 +635,7 @@ public abstract class MixinChunk implements ChunkCarveMarker {
     @org.spongepowered.asm.mixin.Unique
     private static final int QUEUE_INITIAL = 4096;
 
+
     /**
      * 按世界坐标写方块光，直接落到所属区块的 {@link ExtendedBlockStorage}。
      *
@@ -623,15 +643,66 @@ public abstract class MixinChunk implements ChunkCarveMarker {
      * {@code notifyLightSet -> markBlockRangeForRenderUpdate}，批量写入会造成
      * 单 tick 超时（看门狗崩服）。原版批量光照也是直接写数组。
      *
-     * <p>只写已存在的段；不主动分配新段（避免在 BFS 中反复重建天光图）。
+     * <h2>★ 目标段不存在时必须【补建】，不能静默丢弃</h2>
+     * 本方法会被 BFS 用来写<b>跨区块</b>的邻居格。若那个区块的深层段此时还不存在
+     * （尚未填充/尚未创建），旧实现是 {@code if (section != null)} —— 光被直接丢掉，
+     * 而调用方毫不知情。
+     *
+     * <p>后果（实测：{@code /depthsupdate scan} 报出 193 处 {@code dark air}，
+     * 且分布散落在多个区块）：
+     * <pre>
+     *   区块 A 的岩浆 BFS 扩散到区块 B
+     *     -> 写 B 的深层格时 B 的段还是 null -> 光被丢弃
+     *   之后 B 的段被建好，但 A 的 BFS 不会再跑（A 的 extendedLightBuilt 已置位）
+     *   而 B 自己没有岩浆 -> B 的播种也不会写这些格
+     *   => 这些格【永远】是 0，形成"岩浆旁边一片漆黑"
+     * </pre>
+     *
+     * <p>因此这里在目标段缺失时就地创建一个（与原版 {@code Chunk.setLightFor}
+     * 在段为 null 时新建段的做法一致），保证传播过来的光一定会被记录。
+     * 只有当坐标越出该维度的合法范围时才真正放弃。
      */
     @org.spongepowered.asm.mixin.Unique
     private void depthsupdate$writeLightRaw(int x, int y, int z, int value) {
-        ExtendedBlockStorage section = depthsupdate$sectionAt(x, y, z);
+        HeightContext ctx = depthsupdate$ctx();
+        int sectionIndex = ctx.toStorageIndex(y);
 
-        if (section != null) {
-            section.setBlockLight(x & 15, y & 15, z & 15, value);
+        if (sectionIndex < 0) {
+            return;
         }
+
+        // 定位真正要写入的那个区块：本区块直接用自己的数组，
+        // 跨区块必须取【邻居区块】并往它的数组里写（否则会写错地方）。
+        ExtendedBlockStorage[] target;
+
+        if ((x >> 4) == this.x && (z >> 4) == this.z) {
+            target = this.storageArrays;
+        } else {
+            // 用 getLoadedChunk：本方法会在区块读取/转换过程中被调用，
+            // getChunk 可能触发递归加载。
+            Chunk other = this.world.getChunkProvider().getLoadedChunk(x >> 4, z >> 4);
+
+            if (other == null) {
+                // 邻居区块尚未加载，此刻确实无处可写；等它加载后会自行播种。
+                return;
+            }
+
+            target = other.getBlockStorageArray();
+        }
+
+        if (sectionIndex >= target.length) {
+            return;
+        }
+
+        ExtendedBlockStorage section = target[sectionIndex];
+
+        if (section == null || section == NULL_BLOCK_STORAGE) {
+            // ★ 目标段不存在时就地补建，而不是把光丢掉。
+            section = new ExtendedBlockStorage(y >> 4 << 4, this.world.provider.hasSkyLight());
+            target[sectionIndex] = section;
+        }
+
+        section.setBlockLight(x & 15, y & 15, z & 15, value);
     }
 
     /** 按世界坐标读方块光；没有对应段时返回 0。 */
@@ -710,8 +781,27 @@ public abstract class MixinChunk implements ChunkCarveMarker {
     private ExtendedBlockStorage[] depthsupdate$extendedEmitterSections() {
         int stamp = 1;
 
+        // ★ 版本号必须同时反映「段的身份」和「段是否为空」。
+        //
+        // 只取 identityHashCode 是不够的：深层填充（以及其它直接往
+        // ExtendedBlockStorage 写方块的路径）不会替换段对象，只是往里面填内容。
+        // 那样身份不变 -> stamp 不变 -> 缓存照旧命中 —— 于是：
+        //   1. 段最初是空的 -> 算出【空候选列表】并缓存；
+        //   2. 深层填充把岩浆写进【同一个】段对象；
+        //   3. 缓存仍然返回空 -> scanExtendedColumn 直接 return
+        //      -> 单格岩浆这类孤立光源【永远不被播种】，连自身都不亮。
+        // 实测症状正是"孤立的单格岩浆不发光，而成片的岩浆有光晕"
+        // （成片时总有别的列先被扫到，靠 BFS 把光带过去）。
+        //
+        // 把 isEmpty() 纳入版本号后，段从"空"变成"非空"会立即改变 stamp，
+        // 缓存随之失效并重算 —— 不再依赖调用方记得手动清缓存。
         for (int si = 0; si < this.storageArrays.length; ++si) {
-            stamp = stamp * 31 + System.identityHashCode(this.storageArrays[si]);
+            ExtendedBlockStorage section = this.storageArrays[si];
+            stamp = stamp * 31 + System.identityHashCode(section);
+
+            if (section != null && section != NULL_BLOCK_STORAGE) {
+                stamp = stamp * 31 + (section.isEmpty() ? 1 : 2);
+            }
         }
 
         if (stamp == depthsupdate$emitterSectionStamp && depthsupdate$emitterSectionCache != null) {
@@ -785,7 +875,115 @@ public abstract class MixinChunk implements ChunkCarveMarker {
         sayys.depthsupdate.core.LoadEntityGuard.activatePending();
 
         sayys.depthsupdate.core.LoadEntityGuard.endLoad();
+
+        // ★ 区块加载完成 -> 对【全部 256 列】补做深层光照播种。
+        depthsupdate$seedExtendedLight();
     }
+
+    /**
+     * 对<b>整个区块的全部 256 列</b>补做深层（y&lt;0 / y&gt;=256）光照播种。
+     *
+     * <h2>★ 为什么必须在这里做，而不能只依赖 checkLight(II)</h2>
+     * 此前深层播种只挂在 {@code checkLight(II)} 里（见
+     * {@link #depthsupdate$ensureExtendedColumn}）。当时的假设是
+     * "该方法会被 {@code Chunk.checkLight()} 对 256 列各调一次"——
+     * 这个假设是<b>错的</b>。反汇编原版 {@code Chunk.checkLight()V} 后可见：
+     * <pre>
+     *   44-73:   if (world.isAreaLoaded(...))
+     *   135-193:   for (EnumFacing facing : HORIZONTALS)
+     *                chunk = world.getChunk(pos.offset(facing, 16|1))
+     *                chunk.checkLightSide(facing.getOpposite())   // ★ 调【邻居区块】的
+     *   196:       setSkylightUpdated()
+     * </pre>
+     * 即 {@code checkLight()V} <b>根本不调用自己的 {@code checkLight(II)}</b>；
+     * 它只让四个邻居区块各自执行 {@code checkLightSide()}，而后者只处理
+     * <b>朝向那一侧的 16 个边界列</b>。
+     *
+     * <p>结论：一个区块里只有<b>边界列</b>会走到 {@code checkLight(II)}，
+     * 内部 240 列的深层发光方块<b>从来不会被播种</b>；区块内部只能依赖 BFS
+     * 从边界扩散，而光每格衰减 1 级（岩浆最多 15 级），远超不了十几格。
+     *
+     * <p>实测症状与此完全吻合：{@code /depthsupdate scan} 报出 920 处
+     * {@code dark air}（紧邻岩浆却是 0），且<b>散布在多个区块</b>；
+     * 而玩家附近少数格子是 15 —— 那些正是边界 BFS 恰好扩散到的格。
+     *
+     * <h2>为什么放在 onLoad</h2>
+     * <ul>
+     *   <li>每个区块加载时<b>只跑一次</b>，不引入每 tick 开销；</li>
+     *   <li>此时区块数据（含深层段）已经反序列化完毕，可以安全读取；</li>
+     *   <li>覆盖全部 256 列，不依赖任何"边界列"假设。</li>
+     * </ul>
+     *
+     * <p>代价与 {@code scanExtendedColumn} 一致：只对"含发光方块的深层段"
+     * 做一次 BFS，段为空时立即返回。因此对绝大多数区块是零成本的。
+     */
+    /**
+     * 让"深层发光段"候选缓存失效（见 {@link ExtendedLightSeeder}）。
+     *
+     * <p>深层填充直接写 {@code ExtendedBlockStorage}，不经过 {@code setBlockState}，
+     * 因此必须由填充方显式调用本方法，否则填充前缓存的"空候选列表"会被一直复用 ——
+     * 单格岩浆这类孤立光源就永远不会被播种（连自身都不亮）。
+     */
+    @Override
+    public void depthsupdate$invalidateEmitterCache() {
+        depthsupdate$emitterSectionStamp = -1;
+        depthsupdate$emitterSectionCache = null;
+    }
+
+    @Override
+    public void depthsupdate$seedExtendedLight() {
+        if (!depthsupdate$isExtended()) {
+            return;
+        }
+
+        // 幂等：本次加载已经播过种就不要再做一遍。
+        if (depthsupdate$extendedLightSeeded) {
+            return;
+        }
+
+        // 段为空则无事可做（绝大多数区块走这条路径）——
+        // 注意此时【不要】置 seeded，留待深层填充完成后的再次调用。
+        if (depthsupdate$extendedEmitterSections().length == 0) {
+            return;
+        }
+
+        HeightContext ctx = depthsupdate$ctx();
+        BlockPos.MutableBlockPos cursor =
+                new BlockPos.MutableBlockPos(this.x << 4, 0, this.z << 4);
+
+        int totalSeeded = 0;
+
+        for (int localX = 0; localX < 16; ++localX) {
+            for (int localZ = 0; localZ < 16; ++localZ) {
+                cursor.setPos((this.x << 4) + localX, 0, (this.z << 4) + localZ);
+
+                totalSeeded += depthsupdate$scanExtendedColumn(localX, localZ,
+                        this.getTopFilledSegment(), ctx.minY(), cursor);
+            }
+        }
+
+        // ★ 只有【真的播种到光源】才算完成。
+        //
+        // 若仅凭"段存在"就置位，会在新生成区块上误判：那时深层段可能已由 primer
+        // 建好（装着石头/空气），但我们的深层填充（岩浆等）还没跑 —— 于是本次
+        // 扫描一无所获却把 seeded 置为 true，深层填充完成后的那次调用就被跳过，
+        // 岩浆的光永远不会被播种。这正是本次要修的问题本身。
+        if (totalSeeded > 0) {
+            depthsupdate$extendedLightBuilt = true;
+            depthsupdate$extendedLightSeeded = true;
+        }
+    }
+
+    /**
+     * 本区块的深层光照是否已经完成过一次"整区块播种"。
+     *
+     * <p>与 {@link #depthsupdate$extendedLightBuilt} 的区别：后者表示
+     * "边界列的 checkLight 流程已建立"，会在方块变化时被重置；
+     * 本标志只由 {@link #depthsupdate$seedExtendedLight()} 设置，
+     * 用于让 onLoad 与深层填充后的两次调用互不重复。
+     */
+    @org.spongepowered.asm.mixin.Unique
+    private boolean depthsupdate$extendedLightSeeded;
 
     @Inject(method = "getBlockState(III)Lnet/minecraft/block/state/IBlockState;", at = @At("HEAD"), cancellable = true)
     public void depthsupdate$getBlockState(final int x, final int y, final int z, CallbackInfoReturnable<IBlockState> cir) {
@@ -1060,6 +1258,29 @@ public abstract class MixinChunk implements ChunkCarveMarker {
     @Inject(method = "setLightFor", at = @At("HEAD"), cancellable = true)
     public void depthsupdate$setLightFor(EnumSkyBlock type, @NonNull BlockPos pos, int lightValue, CallbackInfo ci) {
         if (!depthsupdate$isExtended()) {
+            // ★ 非扩展维度（本维度高度仍是 0..255）也必须做越界保护。
+            //
+            // 原版 Chunk.setLightFor 的字节码（offset 24-32）是：
+            //     storageArrays[pos.getY() >> 4]        // 无任何边界检查
+            // 当 getY() 为负时，(负数 >> 4) 得到 -1，于是 storageArrays[-1]，
+            // 抛 ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 16。
+            //
+            // 谁会在负 Y 调用它？原版 WorldServer.playerCheckLight：
+            //     y = MathHelper.floor(player.posY) + rand.nextInt(11) - 5;
+            //     this.checkLight(new BlockPos(x, y, z));
+            // 即以"玩家 Y ± 5"随机取点。只要玩家位于 y &lt; 5，就会取到负 Y，
+            // 调用链 World.checkLight -> checkLightFor -> setLightFor 一路传下去。
+            // 实测：玩家在 DIM-1 的 y=-4.30（floor = -5，范围 -10..0），
+            // 服务端随即在 WorldServer.tick -> updateBlocks -> playerCheckLight 崩服。
+            //
+            // 越界坐标本就不存在光照可言，直接取消即可（等价于原版"世界外无光照"的语义），
+            // 且不改动任何合法坐标的行为。
+            int outY = pos.getY();
+
+            if (outY < 0 || outY >= 256) {
+                ci.cancel();
+            }
+
             return;
         }
 
@@ -1205,17 +1426,32 @@ public abstract class MixinChunk implements ChunkCarveMarker {
             }
         }
 
-        // Finally negative sections (closest to surface first)
+        // Finally negative sections, from the one CLOSEST TO THE SURFACE downwards.
+        //
+        // ★ 顺序很关键：本方法必须返回【最高的】非空段。
+        // 负层段在 storageArrays 里的下标顺序是"越深下标越大"
+        // （index 25 = Y -16..-1，index 28 = Y -64..-49），
+        // 所以要从【小的下标】往【大的下标】走，第一个命中的就是最浅（最高）的负层段。
+        // 曾经这里是 negStart -> negEnd，即自上而下却从最深处开始，
+        // 结果只有深层方块的区块会返回 -64 这个"最深的段"，
+        // 而调用方（如 WorldEntitySpawner.getRandomChunkPosition）拿它当"顶部"用，
+        // 于是 nextInt(-64 + 16 - 1) = nextInt(-49) 抛
+        // IllegalArgumentException: bound must be positive，服务端直接崩。
         int negStart = 16 + ctx.upperSections();
         int negEnd = negStart + ctx.negativeSections();
-        for (int i = negStart; i < negEnd; ++i) {
+        for (int i = negEnd - 1; i >= negStart; --i) {
             if (i < this.storageArrays.length && this.storageArrays[i] != NULL_BLOCK_STORAGE) {
                 cir.setReturnValue(this.storageArrays[i].getYLocation());
                 return;
             }
         }
 
-        cir.setReturnValue(ctx.minY());
+        // ★ 全空区块返回 0，与原版一致。
+        //
+        // 原版 getTopFilledSegment -> getLastExtendedBlockStorage 返回 null 时走 iconst_0，
+        // 即"空区块的顶部是 0"。我们以前返回 ctx.minY()（-64），
+        // 使虚空世界（例如 xu_wall 长城世界的初始状态）的调用方算出负数区间而崩溃。
+        cir.setReturnValue(0);
     }
 
     /**
