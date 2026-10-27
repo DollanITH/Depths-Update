@@ -22,13 +22,15 @@
     "client.MixinRenderGlobal",
     "client.MixinRenderGlobalChunkOffset",
     "client.MixinViewFrustum",
-    "client.MixinWorldLighting",
-    "client.MixinWorldClient"
+    "client.MixinWorldClient",
+    "client.MixinWorldLighting"
   ],
   "mixins": [
     "IMixinBlock",
     "IMixinExtendedBlockStorage",
     "MixinAnvilChunkLoader",
+    "MixinBiomeDecorateHeight",
+    "MixinBiomeForestDecorateHeight",
     "MixinBlockFalling",
     "MixinBlockMatcher",
     "MixinBlockPistonBase",
