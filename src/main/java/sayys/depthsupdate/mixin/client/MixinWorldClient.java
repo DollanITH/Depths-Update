@@ -5,8 +5,6 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import sayys.depthsupdate.core.HeightContext;
 import sayys.depthsupdate.core.HeightManager;
 
@@ -36,10 +34,14 @@ public class MixinWorldClient {
         return HeightManager.getMaxY((World) (Object) this);
     }
 
-    @ModifyVariable(
-            method="playMoodSoundAndCheckLight",
-            at=@At(value="NEW", target="net/minecraft/util/math/BlockPos"),
-            ordinal=3
+    @ModifyArg(
+            method="playMoodSoundAndCheckLight(IILnet/minecraft/world/chunk/Chunk;)V",
+            at=@At(
+                    value="INVOKE",
+                    target="Lnet/minecraft/util/math/BlockPos;<init>(III)V"
+            ),
+            index=1,
+            require=0
     )
     private int depthsupdate$scaleMoodSoundY(int originalY) {
         World self = (World) (Object) this;

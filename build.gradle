@@ -60,7 +60,9 @@ configurations {
     implementation.extendsFrom(embed)
     implementation.extendsFrom(contain)
     modCompileOnly
+    flatCompileOnly
     compileOnly.extendsFrom(modCompileOnly)
+    compileOnly.extendsFrom(flatCompileOnly)
     modRuntimeOnly
     runtimeOnly.extendsFrom(modRuntimeOnly)
 
@@ -124,6 +126,7 @@ unimined.minecraft {
     mods {
         remap(configurations.modCompileOnly)
         remap(configurations.modRuntimeOnly)
+        remap(configurations.flatCompileOnly)
     }
 }
 

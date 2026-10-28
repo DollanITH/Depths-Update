@@ -12,7 +12,7 @@ import sayys.depthsupdate.core.HeightManager;
 
 @Mixin(value = ClonedChunkSection.class, remap = false)
 public class MixinClonedChunkSection {
-    @Inject(method = "getChunkSection", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getChunkSection", at = @At("HEAD"), cancellable = true, require = 0)
     private static void depthsupdate$fixGetChunkSection(Chunk chunk, int y, CallbackInfoReturnable<ExtendedBlockStorage> cir) {
         var storageArray = chunk.getBlockStorageArray();
         int storageIndex = HeightManager.getMaxContext().toStorageIndex(y << 4);
